@@ -1,9 +1,10 @@
+from datetime import datetime
 from typing import List
-from Persistance import *
+from Persistance import session, Base
 from sqlalchemy import Integer, DateTime, String, Text
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy import desc
-import Project
+from Model import Project
 
 class Unit(Base):
     __tablename__ = 'units'
@@ -41,8 +42,20 @@ class Unit(Base):
         session.delete(self)
         session.commit()
 
+
+    def list_all_units_by_sequence(self):
+        self.units = session.query(Unit).all().order_by(Unit.unit_sequence)
+        return self.units
+
+def list_all_units_by_sequence():
+    print("list_all_units_by_sequence")
+    units = session.query(Unit).all().order_by(Unit.unit_sequence)
+    print(units)
+    return units
+
 def getCurrentUnit():
     return session.query(Unit).filter(Unit.unitOpeningDate < datetime.now(), Unit.unitClosingDate >= datetime.now()).order_by(desc(Unit.unitOpeningDate)).first()
 
 def getOpenUnits():
     return session.query(Unit).filter(Unit.unitOpeningDate < datetime.now(), Unit.unitClosingDate >= datetime.now()).order_by(desc(Unit.unitOpeningDate)).all()
+

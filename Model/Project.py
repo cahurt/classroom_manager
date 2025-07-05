@@ -3,14 +3,12 @@ from typing import List
 import Persistance
 from sqlalchemy import Integer, DateTime, String, Boolean, Text, ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from typing import Optional
-import Consumable
-import ConsumableCheckout
-import Unit
-import Objective
-import ConsumableAllocation
-import Group
-
+from Model import ConsumableCheckout
+from Model import Unit
+from Model import Objective
+from Model import ConsumableAllocation
+from Model import Group
+from datetime import datetime
 
 
 class Project(Persistance.Base):

@@ -1,379 +1,39 @@
-from datetime import datetime
 from tkinter import *
-from tkinter import filedialog, messagebox, NO, CENTER, W
-import csv
 import ttkbootstrap as tb
 
-import ClassroomLocation
-import Consumable
-import Objective
-import Persistance
-import Unit
+from tabs import BaseTab
+from tabs import UnitTab
+#from tabs.BaseTab import ObjectiveTab
+#from tabs.BaseTab import ConsumableTab
+#from tabs.BaseTab import LocationTab
 
 root = tb.Window(themename="superhero")
 root.title("Foundations of Manufacturing 2025-2026")
-#root.iconbitmap('images/codemy.ico')
+# root.iconbitmap('images/codemy.ico')
 root.geometry('1280x1024')
 
 main_notebook = tb.Notebook(root, bootstyle="dark")
 main_notebook.pack(pady=20)
 
-#**********************************************************************************
-#                       UNIT TAB
-#**********************************************************************************
+# Initialize tabs
+unit_tab = UnitTab(main_notebook)
+objective_tab = ObjectiveTab(main_notebook)
+consumable_tab = ConsumableTab(main_notebook)
+location_tab = LocationTab(main_notebook)
+
+# Add tabs to notebook
+main_notebook.add(unit_tab, text="Units")
+main_notebook.add(objective_tab, text="Objectives")
+main_notebook.add(consumable_tab, text="Consumables")
+main_notebook.add(location_tab, text="Classroom Locations")
+
+root.mainloop()
+
 
 unit_tab = tb.Frame(main_notebook)
 objective_tab = tb.Frame(main_notebook)
 consumable_tab = tb.Frame(main_notebook)
 classroom_location_tab = tb.Frame(main_notebook)
-
-units_label = Label(unit_tab, text="Units", font=("Helvetica", 18))
-units_label.pack(pady=20)
-
-# Create Treeview
-units_tree = tb.Treeview(unit_tab, bootstyle="primary")
-units_tree['columns'] = ('Sequence', 'Name', 'Opening Date', 'End Date', 'Closing Date')
-
-# Format columns
-units_tree.column("#0", width=0, stretch=NO)
-units_tree.column("Sequence", anchor=CENTER, width=80)
-units_tree.column("Name", anchor=W, width=200)
-units_tree.column("Opening Date", anchor=CENTER, width=120)
-units_tree.column("End Date", anchor=CENTER, width=120)
-units_tree.column("Closing Date", anchor=CENTER, width=120)
-
-# Create headings
-units_tree.heading("#0", text="", anchor=W)
-units_tree.heading("Sequence", text="Sequence", anchor=CENTER)
-units_tree.heading("Name", text="Name", anchor=W)
-units_tree.heading("Opening Date", text="Opening Date", anchor=CENTER)
-units_tree.heading("End Date", text="End Date", anchor=CENTER)
-units_tree.heading("Closing Date", text="Closing Date", anchor=CENTER)
-
-def reload_units():
-    units_tree.delete(*units_tree.get_children())
-    # Load units from database
-    units = Persistance.session.query(Unit.Unit).order_by(Unit.Unit.unit_sequence).all()
-    for unit in units:
-      units_tree.insert(parent='', index='end', values=(
-            unit.unit_sequence,
-           unit.unit_name,
-           unit.unit_opening_date.strftime('%Y-%m-%d'),
-           unit.unit_end_date.strftime('%Y-%m-%d'),
-           unit.unit_closing_date.strftime('%Y-%m-%d')
-        )
-            )
-units_tree.pack(pady=10, padx=10)
-reload_units()
-
-
-def generate_csv_template():
-
-
-    file_path = filedialog.asksaveasfilename(
-        defaultextension='.csv',
-        filetypes=[("CSV Files", "*.csv")]
-    )
-    if file_path:
-        with open(file_path, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['unit_name', 'sequence', 'opening_date', 'end_date', 'closing_date', 'description'])
-
-
-def show_new_unit():
-
-    add_unit_button.pack_forget()
-    upload_units_button.pack_forget()
-    template_button.pack_forget()
-    new_unit_frame.pack(padx=5, pady=15)
-
-
-add_unit_button = tb.Button(unit_tab, text="Add Unit", bootstyle="danger", command=show_new_unit)
-add_unit_button.pack(pady=20)
-
-
-def upload_csv():
-    file_path = filedialog.askopenfilename(
-        filetypes=[("CSV Files", "*.csv")]
-    )
-    if not file_path:
-        return
-
-    try:
-        with open(file_path, 'r') as file:
-            csv_reader = csv.reader(file)
-            first_row = next(csv_reader)
-
-            # Check if first row is header
-            if first_row == ['unit_name', 'sequence', 'opening_date', 'end_date', 'closing_date', 'description']:
-                # Skip the header row
-                pass
-            else:
-                # If not header, process first row as data
-                try:
-                    Unit.Unit(
-                        first_row[0],
-                        int(first_row[1]),
-                        datetime.strptime(first_row[2], '%Y-%m-%d'),
-                        datetime.strptime(first_row[4], '%Y-%m-%d'),
-                        datetime.strptime(first_row[3], '%Y-%m-%d'),
-                        first_row[5]
-                    ).add_unit()
-                except (ValueError, IndexError) as e:
-                    messagebox.showerror("Error", f"Invalid data in CSV: {str(e)}")
-                    return
-
-            for row in csv_reader:
-                try:
-                    Unit.Unit(
-                        row[0],
-                        int(row[1]),
-                        datetime.strptime(row[2], '%Y-%m-%d'),
-                        datetime.strptime(row[4], '%Y-%m-%d'),
-                        datetime.strptime(row[3], '%Y-%m-%d'),
-                        row[5]
-                    ).add_unit()
-                except (ValueError, IndexError) as e:
-                    messagebox.showerror("Error", f"Invalid data in CSV: {str(e)}")
-                    reload_units()
-                    return
-
-            reload_units()
-            messagebox.showinfo("Success", "Units imported successfully")
-            reload_units()
-
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to read CSV file: {str(e)}")
-        reload_units()
-
-
-upload_units_button = tb.Button(unit_tab, text="upload CSV", bootstyle="default outline", command=upload_csv)
-upload_units_button.pack(pady=20)
-
-template_button = tb.Button(unit_tab, text="Download Template", bootstyle="info outline", command=generate_csv_template)
-template_button.pack(pady=20)
-
-# variables for creating a new unit
-new_unit_name = tb.StringVar(value="")
-new_unit_sequence = tb.StringVar(value="")
-new_unit_opening_date = tb.StringVar(value="")
-new_unit_closing_date = tb.StringVar(value="")
-new_unit_end_date = tb.StringVar(value="")
-new_unit_description = tb.StringVar(value="")
-
-# new unit GUI items
-new_unit_frame = tb.Frame(unit_tab)
-validation_label = tb.Label(new_unit_frame, text="", bootstyle="danger")
-validation_label.grid(row=5, column=0, columnspan=5, pady=5)
-new_unit_name_label = tb.Label(new_unit_frame, text="unit name", width=15)
-new_unit_name_label.grid(row=0, column=0, padx=10, pady=10)
-new_unit_name_entry = tb.Entry(new_unit_frame, textvariable=new_unit_name, width=50)
-new_unit_name_entry.grid(row=0, column=1, padx=10, pady=10)
-new_unit_sequence_label = tb.Label(new_unit_frame, text="sequence", width=10)
-new_unit_sequence_label.grid(row=0, column=3, padx=10, pady=10)
-new_unit_sequence_entry = tb.Entry(new_unit_frame, textvariable=new_unit_sequence, width=20)
-new_unit_sequence_entry.grid(row=0, column=4, padx=10, pady=10)
-new_unit_sequence_opening_date_label = tb.Label(new_unit_frame, text="opening date", width=15)
-new_unit_sequence_opening_date_label.grid(row=1, column=0, padx=10, pady=10)
-new_unit_opening_date_entry = tb.DateEntry(new_unit_frame, width=15)
-new_unit_opening_date_entry.grid(row=1, column=1, padx=10, pady=10)
-new_unit_sequence_end_date_label = tb.Label(new_unit_frame, text="End date", width=15)
-new_unit_sequence_end_date_label.grid(row=1, column=3, padx=10, pady=10)
-new_unit_end_date_entry = tb.DateEntry(new_unit_frame, width=15)
-new_unit_end_date_entry.grid(row=1, column=4, padx=10, pady=10)
-new_unit_closing_date_label = tb.Label(new_unit_frame, text="Closing date", width=15)
-new_unit_closing_date_label.grid(row=2, column=0, padx=10, pady=10)
-new_unit_closing_date_entry = tb.DateEntry(new_unit_frame, width=15)
-new_unit_closing_date_entry.grid(row=2, column=1, padx=10, pady=10)
-new_unit_description_label = tb.Label(new_unit_frame, text="Description", width=15)
-new_unit_description_label.grid(row=3, column=0, padx=10, pady=10)
-new_unit_description_text = tb.Text(new_unit_frame, width=50, height=4)
-new_unit_description_text.grid(row=3, column=1, columnspan=4, padx=10, pady=10)
-
-
-def validate_unit_fields():
-    if not new_unit_name.get().strip():
-        validation_label.config(text="Unit name is required")
-        return False
-    if not new_unit_sequence.get().strip() or not new_unit_sequence.get().strip().isdigit():
-        validation_label.config(text="Sequence is required and must be a number")
-        return False
-    if not new_unit_opening_date_entry.entry.get().strip():
-        validation_label.config(text="Opening date is required")
-        return False
-    if not new_unit_closing_date_entry.entry.get().strip():
-        validation_label.config(text="Closing date is required")
-        return False
-    if not new_unit_end_date_entry.entry.get().strip():
-        validation_label.config(text="End date is required")
-        return False
-    if not new_unit_description_text.get("1.0", END).strip():
-        validation_label.config(text="Description is required")
-        return False
-    validation_label.config(text="")
-    return True
-
-def create_new_unit():
-
-    if validate_unit_fields():
-        Unit.Unit(
-            new_unit_name.get(),
-            new_unit_sequence.get(),
-            datetime.strptime(new_unit_opening_date_entry.entry.get(), '%m/%d/%Y'),
-            datetime.strptime(new_unit_closing_date_entry.entry.get(), '%m/%d/%Y'),
-            datetime.strptime(new_unit_end_date_entry.entry.get(), '%m/%d/%Y'),
-            new_unit_description_text.get("1.0", END)
-        ).add_unit()
-        reload_units()
-        new_unit_frame.pack_forget()
-        add_unit_button.pack(pady=20)
-        upload_units_button.pack(pady=20)
-
-
-def cancel_new_unit():
-    #reload_units()
-    print("cancel")
-    new_unit_frame.pack_forget()
-    add_unit_button.pack(pady=20)
-    upload_units_button.pack(pady=20)
-    template_button.pack(pady=20)
-
-
-new_unit_submit = tb.Button(new_unit_frame, text="Create", bootstyle="success", command=create_new_unit)
-new_unit_submit.grid(row=4, column=0, columnspan=5, pady=20)
-
-new_unit_cancel = tb.Button(new_unit_frame, text="Cancel", bootstyle="danger", command=cancel_new_unit)
-new_unit_cancel.grid(row=4, column=1, columnspan=5, pady=20)
-
-
-# edit unit GUI items
-# variables for editing a unit
-edit_unit_name = tb.StringVar(value="")
-edit_unit_sequence = tb.StringVar(value="")
-edit_unit_opening_date = tb.StringVar(value="")
-edit_unit_closing_date = tb.StringVar(value="")
-edit_unit_end_date = tb.StringVar(value="")
-edit_unit_description = tb.StringVar(value="")
-
-# edit unit GUI items
-edit_unit_frame = tb.Frame(unit_tab)
-edit_validation_label = tb.Label(edit_unit_frame, text="", bootstyle="danger")
-edit_validation_label.grid(row=5, column=0, columnspan=5, pady=5)
-edit_unit_name_label = tb.Label(edit_unit_frame, text="unit name", width=15)
-edit_unit_name_label.grid(row=0, column=0, padx=10, pady=10)
-edit_unit_name_entry = tb.Entry(edit_unit_frame, textvariable=edit_unit_name, width=50)
-edit_unit_name_entry.grid(row=0, column=1, padx=10, pady=10)
-edit_unit_sequence_label = tb.Label(edit_unit_frame, text="sequence", width=10)
-edit_unit_sequence_label.grid(row=0, column=3, padx=10, pady=10)
-edit_unit_sequence_entry = tb.Entry(edit_unit_frame, textvariable=edit_unit_sequence, width=20)
-edit_unit_sequence_entry.grid(row=0, column=4, padx=10, pady=10)
-edit_unit_sequence_opening_date_label = tb.Label(edit_unit_frame, text="opening date", width=15)
-edit_unit_sequence_opening_date_label.grid(row=1, column=0, padx=10, pady=10)
-edit_unit_opening_date_entry = tb.DateEntry(edit_unit_frame, width=15)
-edit_unit_opening_date_entry.grid(row=1, column=1, padx=10, pady=10)
-edit_unit_sequence_end_date_label = tb.Label(edit_unit_frame, text="End date", width=15)
-edit_unit_sequence_end_date_label.grid(row=1, column=3, padx=10, pady=10)
-edit_unit_end_date_entry = tb.DateEntry(edit_unit_frame, width=15)
-edit_unit_end_date_entry.grid(row=1, column=4, padx=10, pady=10)
-edit_unit_closing_date_label = tb.Label(edit_unit_frame, text="Closing date", width=15)
-edit_unit_closing_date_label.grid(row=2, column=0, padx=10, pady=10)
-edit_unit_closing_date_entry = tb.DateEntry(edit_unit_frame, width=15)
-edit_unit_closing_date_entry.grid(row=2, column=1, padx=10, pady=10)
-edit_unit_description_label = tb.Label(edit_unit_frame, text="Description", width=15)
-edit_unit_description_label.grid(row=3, column=0, padx=10, pady=10)
-edit_unit_description_text = tb.Text(edit_unit_frame, width=50, height=4)
-edit_unit_description_text.grid(row=3, column=1, columnspan=4, padx=10, pady=10)
-
-
-def validate_edit_unit_fields():
-    if not edit_unit_name.get().strip():
-        edit_validation_label.config(text="Unit name is required")
-        return False
-    if not edit_unit_sequence.get().strip() or not edit_unit_sequence.get().strip().isdigit():
-        edit_validation_label.config(text="Sequence is required and must be a number")
-        return False
-    if not edit_unit_opening_date_entry.entry.get().strip():
-        edit_validation_label.config(text="Opening date is required")
-        return False
-    if not edit_unit_closing_date_entry.entry.get().strip():
-        edit_validation_label.config(text="Closing date is required")
-        return False
-    if not edit_unit_end_date_entry.entry.get().strip():
-        edit_validation_label.config(text="End date is required")
-        return False
-    if not edit_unit_description_text.get("1.0", END).strip():
-        edit_validation_label.config(text="Description is required")
-        return False
-    edit_validation_label.config(text="")
-    return True
-
-
-def submit_edit_unit():
-    if validate_edit_unit_fields():
-        selected = units_tree.selection()[0]
-        unit = Persistance.session.query(Unit.Unit).filter_by(
-            unit_sequence=units_tree.item(selected)['values'][0]).first()
-        unit.unit_name = edit_unit_name.get()
-        unit.unit_sequence = edit_unit_sequence.get()
-        unit.unit_opening_date = datetime.strptime(edit_unit_opening_date_entry.entry.get(), '%m/%d/%Y')
-        unit.unit_closing_date = datetime.strptime(edit_unit_closing_date_entry.entry.get(), '%m/%d/%Y')
-        unit.unit_end_date = datetime.strptime(edit_unit_end_date_entry.entry.get(), '%m/%d/%Y')
-        unit.unit_description = edit_unit_description_text.get("1.0", END)
-        unit.update_unit()
-        reload_units()
-        edit_unit_frame.pack_forget()
-        add_unit_button.pack(pady=20)
-        upload_units_button.pack(pady=20)
-
-def delete_unit():
-
-    if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this unit?"):
-        selected = units_tree.selection()[0]
-        unit = Persistance.session.query(Unit.Unit).filter_by(
-        unit_sequence=units_tree.item(selected)['values'][0]).first()
-        unit.delete_unit()
-        reload_units()
-        edit_unit_frame.pack_forget()
-        add_unit_button.pack(pady=20)
-        upload_units_button.pack(pady=20)
-        template_button.pack(pady=20)
-
-
-def cancel_edit_unit():
-    edit_unit_frame.pack_forget()
-    add_unit_button.pack(pady=20)
-    upload_units_button.pack(pady=20)
-    template_button.pack(pady=20)
-
-
-def show_edit_unit(event):
-    selected = units_tree.selection()[0]
-    unit = Persistance.session.query(Unit.Unit).filter_by(unit_sequence=units_tree.item(selected)['values'][0]).first()
-    edit_unit_name.set(unit.unit_name)
-    edit_unit_sequence.set(str(unit.unit_sequence))
-    edit_unit_opening_date_entry.entry.delete(0, END)
-    edit_unit_opening_date_entry.entry.insert(0, unit.unit_opening_date.strftime('%m/%d/%Y'))
-    edit_unit_closing_date_entry.entry.delete(0, END)
-    edit_unit_closing_date_entry.entry.insert(0, unit.unit_closing_date.strftime('%m/%d/%Y'))
-    edit_unit_end_date_entry.entry.delete(0, END)
-    edit_unit_end_date_entry.entry.insert(0, unit.unit_end_date.strftime('%m/%d/%Y'))
-    edit_unit_description_text.delete("1.0", END)
-    edit_unit_description_text.insert("1.0", unit.unit_description)
-    add_unit_button.pack_forget()
-    upload_units_button.pack_forget()
-    edit_unit_frame.pack(padx=5, pady=15)
-
-
-edit_unit_submit = tb.Button(edit_unit_frame, text="Update", bootstyle="success", command=submit_edit_unit)
-edit_unit_submit.grid(row=4, column=0, columnspan=2, pady=20)
-
-edit_unit_delete = tb.Button(edit_unit_frame, text="Delete", bootstyle="danger", command=delete_unit)
-edit_unit_delete.grid(row=4, column=2, columnspan=1, pady=20)
-
-edit_unit_cancel = tb.Button(edit_unit_frame, text="Cancel", bootstyle="warning", command=cancel_edit_unit)
-edit_unit_cancel.grid(row=4, column=3, columnspan=2, pady=20)
-
-units_tree.bind("<Double-1>", show_edit_unit)
 
 
 #**********************************************************************************
@@ -968,12 +628,6 @@ consumables_tree.bind("<Double-1>", show_edit_consumable)
 #                       CLASSROOM LOCATIONS TAB
 # **********************************************************************************
 
-
-# Add our frames to the notebook
-main_notebook.add(unit_tab, text="Units")
-main_notebook.add(objective_tab, text="Objectives")
-main_notebook.add(consumable_tab, text="Consumables")
-main_notebook.add(classroom_location_tab, text="Classroom Locations")
 
 # Classroom Locations Tab
 locations_label = Label(classroom_location_tab, text="Classroom Locations", font=("Helvetica", 18))

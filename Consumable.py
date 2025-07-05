@@ -1,3 +1,5 @@
+from typing import List
+
 from sqlalchemy import String, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import mapped_column, relationship
 from sqlalchemy.orm.attributes import Mapped
@@ -18,6 +20,8 @@ class Consumable(Base):
     consumable_location: Mapped["ClassroomLocation"] = relationship(back_populates="consumables")
 
     # Many to One relationships
+    consumable_checkouts: Mapped[List["ConsumableCheckout"]] = relationship(back_populates="consumable_checkout_consumable")
+    consumable_allocations: Mapped[List["ConsumableAllocation"]] = relationship(back_populates="consumable_used")
 
     # Many to Many relationships
 

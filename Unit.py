@@ -29,12 +29,17 @@ class Unit(Base):
         self.unit_description = unit_desciption
 
     def add_unit(self):
-        # Create a new checkin
+        # Create a new unit
         session.add(self)
         session.commit()
 
-    def updateUnit(self):
-        session.commit(self)
+    def update_unit(self):
+        session.commit()
+
+
+    def delete_unit(self):
+        session.delete(self)
+        session.commit()
 
 def getCurrentUnit():
     return session.query(Unit).filter(Unit.unitOpeningDate < datetime.now(), Unit.unitClosingDate >= datetime.now()).order_by(desc(Unit.unitOpeningDate)).first()

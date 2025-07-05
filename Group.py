@@ -17,6 +17,7 @@ class Group(Base):
 
     # Many to One relationships
     group_projects: Mapped[List["Project"]] = relationship(back_populates="project_group")
+    group_consumable_checkouts: Mapped[List["ConsumableCheckout"]] = relationship(back_populates="consumable_checkout_to_group")
     # Many to Many relationships
 
     def __init__(self, groupName):

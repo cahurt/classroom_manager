@@ -8,6 +8,9 @@ import Consumable
 import ConsumableCheckout
 import Unit
 import Objective
+import ConsumableAllocation
+import Group
+
 
 
 class Project(Persistance.Base):
@@ -33,6 +36,8 @@ class Project(Persistance.Base):
     project_objective_ID: Mapped[int] = mapped_column(ForeignKey("objectives.objective_ID"))
     project_objective: Mapped["Objective"] = relationship(back_populates="objective_projects")
 
+    project_group_ID: Mapped[int] = mapped_column(ForeignKey("groups.group_ID"))
+    project_group: Mapped["Group"] = relationship(back_populates="group_projects")
 
     # Many to One relationships
     project_consumable_checkouts: Mapped[List["ConsumableCheckout"]] = relationship(back_populates="consumable_checkout_project")

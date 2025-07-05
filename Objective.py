@@ -11,6 +11,7 @@ class Objective(Base):
     # Unique attributes
     objective_ID: Mapped[int] = mapped_column(primary_key=True)
     objective_name: Mapped[str] = mapped_column(String(255))
+    objective_description: Mapped[str] = mapped_column(Text)
 
     # One to Many relationships
 
@@ -18,13 +19,18 @@ class Objective(Base):
     objective_projects: Mapped[List["Project"]] = relationship(back_populates="project_objective")
     # Many to Many relationships
 
-    def __init__(self, objectiveName):
-        self.objectiveName = objectiveName
+    def __init__(self, objective_name, objective_description):
+        self.objective_name = objective_name
+        self.objective_description = objective_description
 
-    def addObjective(self):
+    def add_objective(self):
         # Create a new project
         session.add(self)
         session.commit()
 
-    def updateObjective(self):
+    def update_objective(self):
+        session.commit()
+
+    def delete_objective(self):
+        session.delete(self)
         session.commit()

@@ -4,7 +4,7 @@ from Persistance import session, Base
 from sqlalchemy import Integer, DateTime, String, Text
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy import desc
-from Model import Project
+#from Model import Project
 
 class Unit(Base):
     __tablename__ = 'units'
@@ -19,7 +19,7 @@ class Unit(Base):
     unit_closing_date: Mapped[datetime] = mapped_column(DateTime) #date when projects become unavailable by default (can be overidden at the project level)
 
     #One to Many relationships
-    projects_in_unit: Mapped[List["Project"]] = relationship(back_populates="project_unit")
+    #projects_in_unit: Mapped[List["Project"]] = relationship(back_populates="project_unit")
 
     def __init__(self, unit_name, unit_sequence, unit_opening_date, unit_closing_date, unit_end_date, unit_desciption):
         print("made a new unit")

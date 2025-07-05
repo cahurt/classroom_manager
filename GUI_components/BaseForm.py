@@ -87,11 +87,22 @@ class BaseForm(tb.Frame):
         self.clear_validation_error()
         return True
 
-    def fill_form_with_data(self, data):
-        for field in data:
-            field_entry = self.find_winfo_children(field.name)[0]
-            field_entry.delete(0, 'end')
-            field_entry.insert(0, field.value)
+    def populate_fields(self, field_values):
+
+        for field in field_values:
+            entry_type, widget = self.entry_list[field]
+            if isinstance(widget, tb.DateEntry):
+                widget.entry.delete(0, 'end')
+                widget.entry.insert(0, field_values.get(field))
+            elif isinstance(widget, tb.Text):
+                widget.delete("1.0", "end")
+                widget.insert("1.0", field_values.get(field))
+            else:
+                widget.delete(0, 'end')
+                widget.insert(0, field_values.get(field))
+
+    
+
 
     def get_all_entries(self):
 

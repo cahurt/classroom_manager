@@ -4,6 +4,8 @@ from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from datetime import datetime
 from tkinter import*
+
+import Persistance
 from Model import Unit
 from GUI_components.BaseTreeView import BaseTreeView
 from GUI_components.BaseForm import BaseForm
@@ -63,6 +65,7 @@ class UnitTab(BaseTab):
     def create_treeview(self):
         self.units_tree = BaseTreeView(self, self.display_unit_tree_fields)
         self.units_tree.grid(padx=5, pady=15)
+        self.units_tree.bind('<Double-1>', lambda e: self.show_edit_unit())
         self.reload_units()
 
     def create_forms(self):
@@ -93,7 +96,7 @@ class UnitTab(BaseTab):
         self.new_unit_cancel = tb.Button(self.new_unit_form, text="Cancel", bootstyle="danger", command=lambda: self.swap_form_visibility(self.new_unit_form, self.main_button_panel))
         self.new_unit_cancel.grid(row=4, column=1, columnspan=5, pady=20)
 
-        self.edit_unit_submit = tb.Button(self.new_unit_form, text="Update", bootstyle="success", command=self.submit_edit_unit)
+        self.edit_unit_submit = tb.Button(self.edit_unit_form, text="Update", bootstyle="success", command=self.submit_edit_unit)
         self.edit_unit_submit.grid(row=4, column=0, columnspan=2, pady=20)
 
         self.edit_unit_delete = tb.Button(self.edit_unit_form, text="Delete", bootstyle="danger", command=self.delete_unit)
@@ -156,28 +159,6 @@ class UnitTab(BaseTab):
             messagebox.showerror("Error", f"Failed to read CSV file: {str(e)}")
             self.reload_units()
 
-    def validate_unit_fields(self):
-        if not self.new_unit_name.get().strip():
-            self.validation_label.config(text="Unit name is required")
-            return False
-        if not self.new_unit_sequence.get().strip() or not self.new_unit_sequence.get().strip().isdigit():
-            self.validation_label.config(text="Sequence is required and must be a number")
-            return False
-        if not self.new_unit_opening_date_entry.entry.get().strip():
-            self.validation_label.config(text="Opening date is required")
-            return False
-        if not self.new_unit_closing_date_entry.entry.get().strip():
-            self.validation_label.config(text="Closing date is required")
-            return False
-        if not self.new_unit_end_date_entry.entry.get().strip():
-            self.validation_label.config(text="End date is required")
-            return False
-        if not self.new_unit_description_text.get("1.0", END).strip():
-            self.validation_label.config(text="Description is required")
-            return False
-        self.validation_label.config(text="")
-        return True
-
     def create_new_unit(self):
 
          self.new_unit_values = self.new_unit_form.submit_form(self.main_button_panel)
@@ -193,91 +174,97 @@ class UnitTab(BaseTab):
                 ).add_unit()
          self.reload_units()
 
-    def cancel_new_unit(self):
-        # reload_units()
-        print("cancel")
-        self.new_unit_frame.pack_forget()
-        self.add_unit_button.pack(pady=20)
-        self.upload_units_button.pack(pady=20)
-        self.template_button.pack(pady=20)
-
     def validate_edit_unit_fields(self):
-        if not self.edit_unit_name.get().strip():
-            self.edit_validation_label.config(text="Unit name is required")
+        selected = self.units_tree.selection()
+        if not selected:
+            messagebox.showerror("Error", "Please select a unit to edit")
             return False
-        if not self.edit_unit_sequence.get().strip() or not self.edit_unit_sequence.get().strip().isdigit():
-            self.edit_validation_label.config(text="Sequence is required and must be a number")
-            return False
-        if not self.edit_unit_opening_date_entry.entry.get().strip():
-            self.edit_validation_label.config(text="Opening date is required")
-            return False
-        if not self.edit_unit_closing_date_entry.entry.get().strip():
-            self.edit_validation_label.config(text="Closing date is required")
-            return False
-        if not self.edit_unit_end_date_entry.entry.get().strip():
-            self.edit_validation_label.config(text="End date is required")
-            return False
-        if not self.edit_unit_description_text.get("1.0", END).strip():
-            self.edit_validation_label.config(text="Description is required")
-            return False
-        self.edit_validation_label.config(text="")
         return True
 
     def submit_edit_unit(self):
         if self.validate_edit_unit_fields():
             selected = self.units_tree.selection()[0]
-            unit = Persistance.session.query(Unit.Unit).filter_by(
-                unit_sequence=self.units_tree.item(selected)['values'][0]).first()
-            unit.unit_name = self.edit_unit_name.get()
-            unit.unit_sequence = self.edit_unit_sequence.get()
-            unit.unit_opening_date = datetime.strptime(self.edit_unit_opening_date_entry.entry.get(), '%m/%d/%Y')
-            unit.unit_closing_date = datetime.strptime(self.edit_unit_closing_date_entry.entry.get(), '%m/%d/%Y')
-            unit.unit_end_date = datetime.strptime(self.edit_unit_end_date_entry.entry.get(), '%m/%d/%Y')
-            unit.unit_description = self.edit_unit_description_text.get("1.0", END)
-            unit.update_unit()
-            self.reload_units()
-            self.edit_unit_frame.pack_forget()
-            self.add_unit_button.pack(pady=20)
-            self.upload_units_button.pack(pady=20)
+            values = self.units_tree.item(selected)['values']
+            try:
+                unit = Persistance.session.query(Unit.Unit).filter_by(unit_sequence=values[1]).first()
+                if unit:
+                    form_values = self.edit_unit_form.get_all_entries()
+                    unit.unit_name = form_values.get('unit_name')
+                    unit.unit_sequence = form_values.get('sequence')
+                    unit.unit_opening_date = form_values.get('opening_date')
+                    unit.unit_closing_date = form_values.get('closing_date')
+                    unit.unit_end_date = form_values.get('end_date')
+                    unit.unit_description = form_values.get('description')
+                    unit.update_unit()
+                    self.reload_units()
+                    self.swap_form_visibility(self.edit_unit_form, self.main_button_panel)
+                    #messagebox.showinfo("Success", "Unit updated successfully")
+                else:
+                    messagebox.showerror("Error", "Unit not found in database")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to update unit: {str(e)}")
 
     def delete_unit(self):
+        if not self.units_tree.selection():
+            messagebox.showerror("Error", "Please select a unit to delete")
+            return
 
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this unit?"):
-            selected = self.units_tree.selection()[0]
-            unit = Persistance.session.query(Unit.Unit).filter_by(
-                unit_sequence=self.units_tree.item(selected)['values'][0]).first()
-            unit.delete_unit()
-            self.reload_units()
-            self.edit_unit_frame.pack_forget()
-            self.add_unit_button.pack(pady=20)
-            self.upload_units_button.pack(pady=20)
-            self.template_button.pack(pady=20)
+        selected = self.units_tree.selection()[0]
+        values = self.units_tree.item(selected)['values']
 
-    def cancel_edit_unit(self):
-        self.edit_unit_frame.pack_forget()
-        self.add_unit_button.pack(pady=20)
-        self.upload_units_button.pack(pady=20)
-        self.template_button.pack(pady=20)
+        if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete unit '{values[0]}'?"):
+            try:
+                unit = Persistance.session.query(Unit.Unit).filter_by(
+                    unit_sequence=values[1]).first()
+                if unit:
+                    unit.delete_unit()
+                    self.reload_units()
+                    self.swap_form_visibility(self.edit_unit_form, self.main_button_panel)
+                    #messagebox.showinfo("Success", "Unit deleted successfully")
+                else:
+                    messagebox.showerror("Error", "Unit not found in database")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete unit: {str(e)}")
 
-    def show_edit_unit(event):
-        selected = event.units_tree.selection()[0]
-        unit = Persistance.session.query(Unit.Unit).filter_by(
-            unit_sequence=event.units_tree.item(selected)['values'][0]).first()
-        event.edit_unit_name.set(unit.unit_name)
-        event.edit_unit_sequence.set(str(unit.unit_sequence))
-        event.edit_unit_opening_date_entry.entry.delete(0, END)
-        event.edit_unit_opening_date_entry.entry.insert(0, unit.unit_opening_date.strftime('%m/%d/%Y'))
-        event.edit_unit_closing_date_entry.entry.delete(0, END)
-        event.edit_unit_closing_date_entry.entry.insert(0, unit.unit_closing_date.strftime('%m/%d/%Y'))
-        event.edit_unit_end_date_entry.entry.delete(0, END)
-        event.edit_unit_end_date_entry.entry.insert(0, unit.unit_end_date.strftime('%m/%d/%Y'))
-        event.edit_unit_description_text.delete("1.0", END)
-        event.edit_unit_description_text.insert("1.0", unit.unit_description)
-        event.add_unit_button.pack_forget()
-        event.upload_units_button.pack_forget()
-        event.edit_unit_frame.pack(padx=5, pady=15)
+
+    def hide_forms(self):
+        self.main_button_panel.grid_remove()
+        self.new_unit_form.grid_remove()
+        self.edit_unit_form.grid_remove()
+
+    def show_edit_unit(self):
+        if not self.units_tree.selection():
+            return
+
+        selected = self.units_tree.selection()[0]
+        values = self.units_tree.item(selected)['values']
+
+        self.hide_forms()
+        self.edit_unit_form.grid()
+
+        # Populate form fields with selected unit data
+        field_values = {
+            'unit_name': values[0],
+            'sequence': values[1],
+            'opening_date': values[2],
+            'end_date': values[3],
+            'closing_date': values[4],
+            'description': values[5]
+        }
+
+        self.edit_unit_form.populate_fields(field_values)
 
     def reload_units(self):
         self.units_tree.delete(*self.units_tree.get_children())
-        # Load units from database
 
+        # Load units from database
+        units = Persistance.session.query(Unit.Unit).order_by(Unit.Unit.unit_sequence).all()
+        for unit in units:
+            self.units_tree.insert('', 'end', values=(
+                unit.unit_name,
+                unit.unit_sequence,
+                unit.unit_opening_date.strftime('%m/%d/%Y'),
+                unit.unit_end_date.strftime('%m/%d/%Y'),
+                unit.unit_closing_date.strftime('%m/%d/%Y'),
+                unit.unit_description
+            ))

@@ -4,7 +4,9 @@ from Persistance import *
 from sqlalchemy import Integer, DateTime, String
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from typing import Optional
-import Project
+from Model import Project
+from Model import ConsumableCheckout
+
 
 class Group(Base):
     __tablename__ = 'groups'
@@ -20,8 +22,8 @@ class Group(Base):
     group_consumable_checkouts: Mapped[List["ConsumableCheckout"]] = relationship(back_populates="consumable_checkout_to_group")
     # Many to Many relationships
 
-    def __init__(self, groupName):
-        self.groupName = groupName
+    def __init__(self, group_name):
+        self.group_name = group_name
 
     def add_group(self):
         # Create a new project

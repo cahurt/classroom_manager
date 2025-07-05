@@ -2,6 +2,9 @@
 from Persistance import Base
 from sqlalchemy import Integer, DateTime, String, Boolean, Text, ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
+from Model import Project
+from Model import Consumable
+
 
 class ConsumableAllocation(Base):
     __tablename__ = 'consumable_allocation'

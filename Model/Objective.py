@@ -1,8 +1,8 @@
 from typing import List
-import Persistance
 from Persistance import *
 from sqlalchemy import Integer, DateTime, String
 from sqlalchemy.orm import mapped_column, Mapped, relationship
+from Model import Project
 from typing import Optional
 
 class Objective(Base):

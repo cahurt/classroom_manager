@@ -5,8 +5,10 @@ from sqlalchemy import String, Integer, ForeignKey, Boolean, DateTime
 from sqlalchemy.orm import mapped_column, relationship
 from sqlalchemy.orm.attributes import Mapped
 from Persistance import Base, session
-import Project
-import Consumable
+from Model import Project
+from Model import Consumable
+from Model import Group
+
 
 class ConsumableCheckout(Base):
     __tablename__ = 'consumable_checkout'

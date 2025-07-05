@@ -4,7 +4,7 @@ from sqlalchemy import String, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import mapped_column, relationship
 from sqlalchemy.orm.attributes import Mapped
 from Persistance import Base, session
-import Consumable
+from Model import Consumable
 
 class ClassroomLocation(Base):
     __tablename__ = 'classroom_locations'

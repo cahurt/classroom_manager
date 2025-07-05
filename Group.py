@@ -4,27 +4,28 @@ from Persistance import *
 from sqlalchemy import Integer, DateTime, String
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from typing import Optional
+import Project
 
-class Objective(Base):
-    __tablename__ = 'objectives'
+class Group(Base):
+    __tablename__ = 'groups'
 
     # Unique attributes
-    objective_ID: Mapped[int] = mapped_column(primary_key=True)
-    objective_name: Mapped[str] = mapped_column(String(255))
+    group_ID: Mapped[int] = mapped_column(primary_key=True)
+    group_name: Mapped[str] = mapped_column(String(255))
 
     # One to Many relationships
 
     # Many to One relationships
-    objective_projects: Mapped[List["Project"]] = relationship(back_populates="project_objective")
+    group_projects: Mapped[List["Project"]] = relationship(back_populates="project_group")
     # Many to Many relationships
 
-    def __init__(self, objectiveName):
-        self.objectiveName = objectiveName
+    def __init__(self, groupName):
+        self.groupName = groupName
 
-    def addObjective(self):
+    def add_group(self):
         # Create a new project
         session.add(self)
         session.commit()
 
-    def updateObjective(self):
+    def update_group(self):
         session.commit()

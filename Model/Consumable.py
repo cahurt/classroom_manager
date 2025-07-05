@@ -2,6 +2,8 @@ from typing import List
 from sqlalchemy import String, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import mapped_column, relationship
 from sqlalchemy.orm.attributes import Mapped
+
+import Persistance
 from Persistance import Base, session
 from Model import ClassroomLocation
 from Model import ConsumableCheckout
@@ -19,6 +21,7 @@ class Consumable(Base):
     # One to Many relationships
     consumable_location_ID: Mapped[int] = mapped_column(ForeignKey("classroom_locations.classroom_location_ID"))
     consumable_location: Mapped["ClassroomLocation"] = relationship(back_populates="consumables")
+
 
     # Many to One relationships
     consumable_checkouts: Mapped[List["ConsumableCheckout"]] = relationship(back_populates="consumable_checkout_consumable")

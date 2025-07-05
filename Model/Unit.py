@@ -22,12 +22,14 @@ class Unit(Base):
     projects_in_unit: Mapped[List["Project"]] = relationship(back_populates="project_unit")
 
     def __init__(self, unit_name, unit_sequence, unit_opening_date, unit_closing_date, unit_end_date, unit_desciption):
+        print("made a new unit")
         self.unit_name = unit_name
         self.unit_sequence = unit_sequence
         self.unit_opening_date = unit_opening_date
         self.unit_closing_date = unit_closing_date
         self.unit_end_date = unit_end_date
         self.unit_description = unit_desciption
+
 
     def add_unit(self):
         # Create a new unit

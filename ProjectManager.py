@@ -1,6 +1,5 @@
 # ProjectManager.py
 import ttkbootstrap as tb
-
 import Persistance
 from GUI_components.UnitTab import UnitTab
 

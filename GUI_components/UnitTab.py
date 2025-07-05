@@ -1,14 +1,14 @@
 # GUI_components/tabs/UnitTab.py
 import csv
 from tkinter import filedialog, messagebox
-from Model import Unit
-from GUI_components.BaseTab import BaseTab
-from GUI_components.BaseTreeView import BaseTreeView
 import ttkbootstrap as tb
 from datetime import datetime
 from tkinter import*
+from Model import Unit
+from GUI_components.BaseTreeView import BaseTreeView
 from GUI_components.BaseForm import BaseForm
-import Persistance
+from GUI_components.BaseTab import BaseTab
+
 
 
 class UnitTab(BaseTab):
@@ -185,7 +185,7 @@ class UnitTab(BaseTab):
              print(self.new_unit_values)
              Unit.Unit(
                 self.new_unit_values.get('unit_name'),
-                int(self.new_unit_values.get('sequence')),
+                self.new_unit_values.get('sequence'),
                 self.new_unit_values.get('opening_date'),
                 self.new_unit_values.get('closing_date'),
                 self.new_unit_values.get('end_date'),

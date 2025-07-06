@@ -2,9 +2,8 @@
 import ttkbootstrap as tb
 import Persistance
 from GUI_components.UnitTab import UnitTab
+from GUI_components.ObjectiveTab import ObjectiveTab
 
-
-#from GUI_components.tabs.ObjectiveTab import ObjectiveTab
 #from GUI_components.tabs.ConsumableTab import ConsumableTab
 #from GUI_components.tabs.LocationTab import LocationTab
 
@@ -27,7 +26,7 @@ class ProjectManager:
     def create_tabs(self):
         tabs = {
             "Units": UnitTab,
-            #"Objectives": ObjectiveTab,
+            "Objectives": ObjectiveTab,
             #"Consumables": ConsumableTab,
             #"Classroom Locations": LocationTab
         }

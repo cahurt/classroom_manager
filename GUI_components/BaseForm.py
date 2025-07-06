@@ -16,6 +16,16 @@ class BaseForm(tb.Frame):
     def clear_validation_error(self):
         self.validation_label.config(text="")
 
+    def clear_form(self):
+        for field_label, entry_tuple in self.entry_list.items():
+            entry_type, widget = entry_tuple
+            if isinstance(widget, tb.DateEntry):
+                widget.entry.delete(0, 'end')
+            elif isinstance(widget, tb.Text):
+                widget.delete("1.0", "end")
+            else:
+                widget.delete(0, 'end')
+
     def show_standard_fields(self, display_fields, per_row=2):
         self.row_count = 0
         self.column_count = 0

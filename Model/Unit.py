@@ -39,11 +39,9 @@ class Unit(Base):
     def update_unit(self):
         session.commit()
 
-
     def delete_unit(self):
         session.delete(self)
         session.commit()
-
 
     def list_all_units_by_sequence(self):
         self.units = session.query(Unit).all().order_by(Unit.unit_sequence)

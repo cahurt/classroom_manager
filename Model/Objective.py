@@ -2,7 +2,7 @@ from typing import List
 from Persistance import *
 from sqlalchemy import Integer, DateTime, String
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from Model import Project
+#from Model import Project
 from typing import Optional
 
 class Objective(Base):
@@ -16,7 +16,7 @@ class Objective(Base):
     # One to Many relationships
 
     # Many to One relationships
-    objective_projects: Mapped[List["Project"]] = relationship(back_populates="project_objective")
+    #objective_projects: Mapped[List["Project"]] = relationship(back_populates="project_objective")
     # Many to Many relationships
 
     def __init__(self, objective_name, objective_description):
@@ -34,3 +34,8 @@ class Objective(Base):
     def delete_objective(self):
         session.delete(self)
         session.commit()
+
+@staticmethod
+def list_all_objectives():
+
+    return session.query(Objective).all()

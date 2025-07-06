@@ -1,3 +1,138 @@
+import csv
+from datetime import datetime
+from tkinter import filedialog
+
+import ttkbootstrap as tb
+from Model import Unit
+from GUI_components.BaseTab import BaseTab
+from GUI_components.BaseForm import BaseForm
+from GUI_components.BaseTreeView import BaseTreeView
+
+
+
+class UnitTab(BaseTab):
+    # Class constants
+    FIELD_DEFINITIONS = [
+        ('Name', 'unit_name', str),
+        ('Sequence', 'sequence', int),
+        ('Opening Date', 'opening_date', datetime),
+        ('End Date', 'end_date', datetime),
+        ('Closing Date', 'closing_date', datetime),
+        ('Description', 'description', None)
+    ]
+
+    TREE_COLUMNS = ['unit_name', 'sequence', 'opening_date',
+                    'end_date', 'closing_date', 'description']
+
+    CSV_TEMPLATE_HEADERS = ['unit_name', 'sequence', 'opening_date',
+                            'end_date', 'closing_date', 'description']
+
+    DATE_FORMAT = '%Y-%m-%d'
+    DISPLAY_DATE_FORMAT = '%m/%d/%Y'
+
+    def __init__(self, notebook):
+        super().__init__(notebook)
+        self.setup_variables()
+        self.setup_ui()
+
+    def setup_variables(self):
+        self.new_unit_vars = self._create_unit_variables()
+        self.edit_unit_vars = self._create_unit_variables()
+
+    def _create_unit_variables(self):
+        return {
+            'name': tb.StringVar(value=""),
+            'sequence': tb.StringVar(value=""),
+            'opening_date': tb.StringVar(value=""),
+            'closing_date': tb.StringVar(value=""),
+            'end_date': tb.StringVar(value=""),
+            'description': tb.StringVar(value="")
+        }
+
+    def setup_ui(self):
+        self._create_header()
+        self._create_treeview()
+        self._create_forms()
+        self._setup_buttons()
+
+    def _create_header(self):
+        self.header_label = tb.Label(self, text="Units", font=("Helvetica", 18))
+        self.header_label.grid(pady=20)
+
+    def _create_treeview(self):
+        self.units_tree = BaseTreeView(self, self.TREE_COLUMNS)
+        self.units_tree.grid(padx=5, pady=15)
+        self.units_tree.bind('<Double-1>', lambda e: self.show_edit_unit())
+        self.reload_units()
+
+    def _create_forms(self):
+        self.main_button_panel = BaseForm(self)
+        self.main_button_panel.grid(pady=20)
+
+        self.new_unit_form = BaseForm(self)
+        self.new_unit_form.show_standard_fields(self.FIELD_DEFINITIONS, 4)
+
+        self.edit_unit_form = BaseForm(self)
+        self.edit_unit_form.show_standard_fields(self.FIELD_DEFINITIONS, 4)
+
+    def create_new_unit(self):
+        unit_values = self.new_unit_form.submit_form(self.main_button_panel)
+        if unit_values:
+            try:
+                self._save_new_unit(unit_values)
+                self.reload_units()
+            except Exception as e:
+                self.show_error(f"Failed to create unit: {str(e)}")
+
+    def _save_new_unit(self, values):
+        new_unit = Unit.Unit(
+            values.get('unit_name'),
+            values.get('sequence'),
+            values.get('opening_date'),
+            values.get('closing_date'),
+            values.get('end_date'),
+            values.get('description')
+        )
+        new_unit.add_unit()
+        print("Unit created:", values)
+
+    def upload_unit_csv(self):
+        file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
+        if file_path:
+            try:
+                self._process_csv_file(file_path)
+                self.show_success("Units imported successfully")
+            except Exception as e:
+                self.show_error(f"Failed to process CSV: {str(e)}")
+            finally:
+                self.reload_units()
+
+    def _process_csv_file(self, file_path):
+        with open(file_path, 'r') as file:
+            csv_reader = csv.reader(file)
+            first_row = next(csv_reader)
+
+            if first_row != self.CSV_TEMPLATE_HEADERS:
+                self._process_unit_row(first_row)
+
+            for row in csv_reader:
+                self._process_unit_row(row)
+
+    def _process_unit_row(self, row):
+        try:
+            Unit.Unit(
+                row[0],
+                int(row[1]),
+                datetime.strptime(row[2], self.DATE_FORMAT),
+                datetime.strptime(row[4], self.DATE_FORMAT),
+                datetime.strptime(row[3], self.DATE_FORMAT),
+                row[5]
+            ).add_unit()
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"Invalid data in CSV row: {str(e)}")
+
+
+
 #**********************************************************************************
 #                       UNIT TAB
 #**********************************************************************************

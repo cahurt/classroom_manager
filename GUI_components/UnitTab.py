@@ -3,7 +3,7 @@ from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from datetime import datetime
 
-import Persistance
+from Persistance import session
 from Model import Unit
 from GUI_components.BaseTreeView import BaseTreeView
 from GUI_components.BaseForm import BaseForm
@@ -11,21 +11,26 @@ from GUI_components.BaseTab import BaseTab
 
 
 class UnitTab(BaseTab):
-    # Class constants
-    DATE_FORMAT = '%Y-%m-%d'
-    DISPLAY_DATE_FORMAT = '%m/%d/%Y'
-
-    UNIT_FIELDS = [
-        ('Name', 'unit_name', str),
-        ('Sequence', 'sequence', int),
-        ('Opening Date', 'opening_date', datetime),
-        ('End Date', 'end_date', datetime),
-        ('Closing Date', 'closing_date', datetime),
-        ('Description', 'description', None)
+    UNIT_DISPLAY_FIELDS = [
+        ('Name', 'unit_name', 'string(50,255)', []),
+        ('Sequence', 'unit_sequence', 'int(10,0,30)', []),
+        ('Opening Date', 'unit_opening_date', 'date', []),
+        ('End Date', 'unit_end_date', 'date', []),
+        ('Closing Date', 'unit_closing_date', 'date', []),
+        ('Description', 'unit_description', 'text(15,5, 1000)', [])
     ]
 
-    TREE_COLUMNS = ['unit_name', 'sequence', 'opening_date', 'end_date', 'closing_date', 'description']
-    CSV_HEADERS = ['unit_name', 'sequence', 'opening_date', 'end_date', 'closing_date', 'description']
+    TREE_COLUMNS = [('ID', 'unit_ID', 0),
+                    ('Name', 'unit_name', 200),
+                    ('Sequence', 'unit_sequence', 50),
+                    ('Opening Date', 'unit_opening_date', 125),
+                    ('End Date', 'unit_end_date', 125),
+                    ('Closing Date', 'unit_closing_date', 125),
+                    ('Description', 'unit_description', 150)
+
+                    ]
+
+    CSV_HEADERS = ['unit_name', 'unit_sequence', 'unit_opening_date', 'unit_end_date', 'unit_closing_date', 'unit_description']
 
     def __init__(self, notebook):
         super().__init__(notebook)
@@ -33,253 +38,168 @@ class UnitTab(BaseTab):
         self._setup_ui()
 
     def _setup_variables(self):
-        #"""Initialize form variables#"""
-        self.new_unit_vars = self._create_unit_variables()
-        self.edit_unit_vars = self._create_unit_variables()
 
-    def _create_unit_variables(self):
-        #"""Create StringVar variables for unit forms#"""
-        return {field: tb.StringVar(value="") for field in
-                ['name', 'sequence', 'opening_date', 'closing_date', 'end_date', 'description']}
+        pass
 
     def _setup_ui(self):
-        #"""Setup UI components#"""
-        self._create_header()
-        self._create_treeview()
+        # """Setup UI components#"""
+        self.create_header("Units")
+        self._create_treeviews()
         self._create_forms()
-        self._setup_buttons()
 
-    def _create_header(self):
-        #"""Create header label#"""
-        self.units_label = tb.Label(self, text="Units", font=("Helvetica", 18))
-        self.units_label.grid(pady=20)
-
-    def _create_treeview(self):
-        #"""Create and configure treeview#"""
-        self.units_tree = BaseTreeView(self, self.TREE_COLUMNS)
-        self.units_tree.grid(padx=5, pady=15)
-        self.units_tree.bind('<Double-1>', lambda e: self.show_edit_unit())
-        self._reload_units()
+    def _create_treeviews(self):
+        # """Create and configure treeviews"""
+        self.units_tree = self._create_base_treeview(
+            self.TREE_COLUMNS,
+            double_click_handler=self._load_edit_state
+        )
+        self._reload_units_tree()
 
     def _create_forms(self):
-        #"""Create form panels#"""
-        self.main_button_panel = BaseForm(self)
+
+        # setup form buttons,
+        # text, style, row, col, colspan, command
+        self.edit_buttons = [
+            ("Update", "success", 5, 0, 2, self._submit_edited_unit),
+            ("Delete", "danger", 5, 2, 1, self._delete_selected_unit),
+            ("Cancel", "warning", 5, 3, 2, self._load_base_state)
+        ]
+
+        self.main_buttons = [
+            ("Upload CSV", "default outline", 5, 0, 2, self.upload_unit_csv),
+            ("Download Template", "info outline", 5, 2, 1,
+             lambda: self.generate_csv_template(self.CSV_HEADERS, 'unit_template')),
+            ("Add Unit", "danger", 5, 4, 2, self._load_new_unit_state)
+        ]
+
+        self.new_buttons = [
+            ("Create", "success", 5, 0, 2, self._create_new_unit_from_form),
+            ("Cancel", "warning", 5, 3, 2, self._load_base_state)
+        ]
+
+        # """Create form panels#"""
+        self.main_button_panel = BaseForm(self, self.UNIT_DISPLAY_FIELDS)
         self.main_button_panel.grid(pady=20)
+        self.create_buttons(self.main_button_panel, self.main_buttons)
 
-        self.new_unit_form = BaseForm(self)
-        self.new_unit_form.show_standard_fields(self.UNIT_FIELDS, 4)
+        self.new_unit_form = BaseForm(self, self.UNIT_DISPLAY_FIELDS)
+        self.new_unit_form.show_standard_fields(4)
+        self.create_buttons(self.new_unit_form, self.new_buttons)
 
-        self.edit_unit_form = BaseForm(self)
-        self.edit_unit_form.show_standard_fields(self.UNIT_FIELDS, 4)
+        self.edit_unit_form = BaseForm(self, self.UNIT_DISPLAY_FIELDS)
+        self.edit_unit_form.show_standard_fields(4)
+        self.create_buttons(self.edit_unit_form, self.edit_buttons)
 
-    def _setup_buttons(self):
-        #"""Setup form buttons#"""
-        self._create_main_buttons()
-        self._create_new_unit_buttons()
-        self._create_edit_unit_buttons()
-
-    def _create_main_buttons(self):
-        #"""Create main panel buttons#"""
-        buttons = [
-            ("Upload CSV", "default outline", self.upload_unit_csv),
-            ("Download Template", "info outline",
-             lambda: self.generate_csv_template(self.CSV_HEADERS, 'unit_template.csv')),
-            ("Add Unit", "danger", self.load_new_unit_state)
-        ]
-
-        for text, style, command in buttons:
-            btn = tb.Button(self.main_button_panel, text=text, bootstyle=style, command=command)
-            btn.grid(pady=20)
-
-    def load_new_unit_state(self):
-        self.swap_form_visibility(self.main_button_panel, self.new_unit_form)
+    def _load_new_unit_state(self):
+        self.hide_forms()
         self.new_unit_form.clear_form()
+        self.new_unit_form.grid()
 
-    def _create_new_unit_buttons(self):
-        #"""Create new unit form buttons#"""
-        submit_btn = tb.Button(self.new_unit_form, text="Create", bootstyle="success",
-                               command=lambda: self.new_unit_form.submit_form(self.create_new_unit()))
-        submit_btn.grid(row=4, column=0, columnspan=5, pady=20)
+    def _load_base_state(self):
 
-        cancel_btn = tb.Button(self.new_unit_form, text="Cancel", bootstyle="danger",
-                               command=lambda: self.swap_form_visibility(self.new_unit_form, self.main_button_panel))
-        cancel_btn.grid(row=4, column=1, columnspan=5, pady=20)
+        self.hide_forms()
+        self.new_unit_form.clear_form()
+        self.edit_unit_form.clear_form()
+        self.main_button_panel.grid()
 
-    def _create_edit_unit_buttons(self):
-        #"""Create edit unit form buttons#"""
-        buttons = [
-            ("Update", "success", 0, 2, self.submit_edit_unit),
-            ("Delete", "danger", 2, 1, self.delete_unit),
-            ("Cancel", "warning", 3, 2,
-             lambda: self.swap_form_visibility(self.edit_unit_form, self.main_button_panel))
-        ]
+    def _load_edit_state(self):
 
-        for text, style, col, colspan, command in buttons:
-            btn = tb.Button(self.edit_unit_form, text=text, bootstyle=style, command=command)
-            btn.grid(row=4, column=col, columnspan=colspan, pady=20)
-
-    def upload_unit_csv(self):
-        #"""Handle CSV file upload#"""
-        file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
-        if not file_path:
-            return
-
+        #validation should be redundant here as it should only be called as an action
         try:
-            self._process_csv_file(file_path)
-            self.show_success("Units imported successfully")
+            if not self.units_tree.validate_item_is_selected():
+                return
         except Exception as e:
-            self.show_error(f"Failed to read CSV file: {str(e)}")
-        finally:
-            self._reload_units()
+            pass
 
-    def _process_csv_file(self, file_path):
-        #"""Process uploaded CSV file#"""
-        with open(file_path, 'r') as file:
-            csv_reader = csv.reader(file)
-            first_row = next(csv_reader)
-
-            if first_row != self.CSV_HEADERS:
-                self._process_unit_row(first_row)
-
-            for row in csv_reader:
-                self._process_unit_row(row)
-
-    def _process_unit_row(self, row):
-        #"""Process single CSV row into Unit object#"""
-        try:
-            unit = Unit.Unit(
-                row[0],
-                int(row[1]),
-                datetime.strptime(row[2], self.DATE_FORMAT),
-                datetime.strptime(row[4], self.DATE_FORMAT),
-                datetime.strptime(row[3], self.DATE_FORMAT),
-                row[5]
-            )
-            unit.add_unit()
-        except (ValueError, IndexError) as e:
-            raise ValueError(f"Invalid data in CSV: {str(e)}")
-
-    def create_new_unit(self):
-        #"""Create new unit from form data#"""
-        values = self.new_unit_form.submit_form(self.main_button_panel)
-        if values:
-            Unit.Unit(
-                values.get('unit_name'),
-                values.get('sequence'),
-                values.get('opening_date'),
-                values.get('closing_date'),
-                values.get('end_date'),
-                values.get('description')
-            ).add_unit()
-            self._reload_units()
-
-    def show_edit_unit(self):
-        #"""Display edit form for selected unit#"""
-        if not self.units_tree.selection():
-            return
-
-        selected = self.units_tree.selection()[0]
-        values = self.units_tree.item(selected)['values']
-
+        field_values = self.units_tree._create_dictionary_from_selected_tree_item_and_values(self.TREE_COLUMNS)
+        self.edit_unit_form.populate_fields(field_values)
         self.hide_forms()
         self.edit_unit_form.grid()
 
-        field_values = self._create_field_values_dict(values)
-        self.edit_unit_form.populate_fields(field_values)
+    def upload_unit_csv(self):
+        # """Handle Unit CSV file upload - done in base tab"""
+        self.upload_csv(self.CSV_HEADERS,"Units imported successfully")
+        self._reload_units_tree()
 
-    def _create_field_values_dict(self, values):
-        #"""Create dictionary of field values from selected unit#"""
-        return {
-            'unit_name': values[0],
-            'sequence': values[1],
-            'opening_date': values[2],
-            'end_date': values[3],
-            'closing_date': values[4],
-            'description': values[5]
-        }
-
-    def hide_forms(self):
-        # """Hide all form components#"""
-        self.main_button_panel.grid_remove()
-        self.new_unit_form.grid_remove()
-        self.edit_unit_form.grid_remove()
-
-    def submit_edit_unit(self):
-        #"""Submit edited unit data#"""
-        if not self._validate_edit_unit():
-            return
-
-        selected = self.units_tree.selection()[0]
-        values = self.units_tree.item(selected)['values']
+    def _process_row(self, row):
+        # all in this world this method does is call the specific create from dictionary method for the class and then persist
+        # at this point there should have been like 7 different error checks on the types, and the class method will catch anything else
+        # so we are not going to do anything beyond a basic try/catch validation
 
         try:
-            unit = self._get_unit_by_sequence(values[1])
+            unit = Unit.Unit.create_from_dict(row)
+
+            unit.add_new_unit(session)
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"Invalid data in CSV: {str(e)}")
+
+    def _reload_units_tree(self):
+        # this should be the only place where we have a query object for this tree or anything dealing with it
+        self.units_tree.reload_tree(Unit.Unit.get_all_units_by_sequence(), self.TREE_COLUMNS)
+
+    def _submit_edited_unit(self):
+        # """Submit edited unit data#"""
+
+        try:
+            unit = self.get_selected_unit()
+
             if unit:
-                self._update_unit(unit)
-                self._reload_units()
-                self.swap_form_visibility(self.edit_unit_form, self.main_button_panel)
+                self._modify_unit_from_form()
+                self._reload_units_tree()
+                self._load_base_state()
             else:
                 self.show_error("Unit not found in database")
         except Exception as e:
             self.show_error(f"Failed to update unit: {str(e)}")
 
-    def _validate_edit_unit(self):
-        #"""Validate unit selection for editing#"""
-        if not self.units_tree.selection():
-            self.show_error("Please select a unit to edit")
-            return False
-        return True
+    def _modify_unit_from_form(self):
+        # """Update unit with form values#"""
+        form_values = self.edit_unit_form.validate_and_collect_form_values()
+        try:
+            unit = Unit.Unit.create_from_dict(form_values)
+            unit.unit_ID = self.units_tree.item(self.units_tree.selection()[0])['values'][0]
+            unit.update_unit(session)
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"Invalid data, the unit was not updated: {str(e)}")
 
-    def _get_unit_by_sequence(self, sequence):
-        #"""Retrieve unit from database by sequence number#"""
-        return Persistance.session.query(Unit.Unit).filter_by(unit_sequence=sequence).first()
+    def _create_new_unit_from_form(self):
+        # """Create new unit from form data#"""
+        try:
+            values = self.new_unit_form.validate_and_collect_form_values()
+            if values:
+                Unit.Unit.create_from_dict(values).add_new_unit(session)
+                self._reload_units_tree()
+                self._load_base_state()
+        except Exception as e:
+            self.show_error(f"Failed to update unit: {str(e)}")
 
-    def _update_unit(self, unit):
-        #"""Update unit with form values#"""
-        form_values = self.edit_unit_form.get_all_entries()
-        unit.unit_name = form_values.get('unit_name')
-        unit.unit_sequence = form_values.get('sequence')
-        unit.unit_opening_date = form_values.get('opening_date')
-        unit.unit_closing_date = form_values.get('closing_date')
-        unit.unit_end_date = form_values.get('end_date')
-        unit.unit_description = form_values.get('description')
-        unit.update_unit()
+    def _delete_selected_unit(self):
+        # """Delete selected unit#"""
 
-    def delete_unit(self):
-        #"""Delete selected unit#"""
-        if not self._validate_edit_unit():
-            return
-
-        selected = self.units_tree.selection()[0]
-        values = self.units_tree.item(selected)['values']
-
-        if self.confirm_delete(f"Are you sure you want to delete unit '{values[0]}'?"):
+        if self.confirm_delete(f"Are you sure you want to delete selected unit'?"):
             try:
-                unit = self._get_unit_by_sequence(values[1])
+                unit = self.get_selected_unit()
                 if unit:
-                    unit.delete_unit()
-                    self._reload_units()
-                    self.swap_form_visibility(self.edit_unit_form, self.main_button_panel)
-                else:
-                    self.show_error("Unit not found in database")
+                    unit.delete_unit(session)
+                    self._reload_units_tree()
+                    self._load_base_state()
+
             except Exception as e:
                 self.show_error(f"Failed to delete unit: {str(e)}")
 
-    def _reload_units(self):
-        #"""Refresh units display in treeview#"""
-        self.units_tree.delete(*self.units_tree.get_children())
-        units = Persistance.session.query(Unit.Unit).order_by(Unit.Unit.unit_sequence).all()
+    def get_selected_unit(self) -> Unit:
 
-        for unit in units:
-            self.units_tree.insert('', 'end', values=self._format_unit_values(unit))
+        if not self.units_tree.validate_item_is_selected():
+            return None
 
-    def _format_unit_values(self, unit):
-        #"""Format unit values for display#"""
-        return (
-            unit.unit_name,
-            unit.unit_sequence,
-            unit.unit_opening_date.strftime(self.DISPLAY_DATE_FORMAT),
-            unit.unit_end_date.strftime(self.DISPLAY_DATE_FORMAT),
-            unit.unit_closing_date.strftime(self.DISPLAY_DATE_FORMAT),
-            unit.unit_description
-        )
+        try:
+            selected = self.units_tree.selection()[0]
+            values = self.units_tree.item(selected)['values']
+            unit = Unit.Unit.get_unit_by_ID(values[0])
+            if unit:
+                return unit
+            else:
+                self.show_error("Unit not found in database")
+                return None
+        except Exception as e:
+            self.show_error(f"Failed to delete unit: {str(e)}")

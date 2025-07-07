@@ -3,22 +3,68 @@ import ttkbootstrap as tb
 from tkinter import messagebox, filedialog
 import csv
 
+from GUI_components.BaseForm import BaseForm
+from GUI_components.BaseTreeView import BaseTreeView
+
+
 class BaseTab(tb.Frame):
+    
+    # Class constants
+    DATE_FORMAT = '%Y-%m-%d'
+    DISPLAY_DATE_FORMAT = '%m/%d/%Y'
+
+
     def __init__(self, notebook):
         super().__init__(notebook)
         self.notebook = notebook
 
-    #probably depricated
-    def toggle_form_visibility(self, form_to_show, buttons_to_hide):
-        #"""Common method to toggle form visibility#"""
-        form_to_show.grid(padx=5, pady=15)
-        for button in buttons_to_hide:
-            button.grid_forget()
+    def create_header(self, header_text):
+        # """Create header label#"""
+        self.units_label = tb.Label(self, text=header_text, font=("Helvetica", 18))
+        self.units_label.grid(pady=20)
 
+    def _create_base_treeview(self, tree_columns, double_click_handler=None):
+        """Create and configure base treeview"""
+        tree = BaseTreeView(self, tree_columns)
+        tree.grid(padx=5, pady=15)
+        if double_click_handler:
+            tree.bind('<Double-1>', lambda e: double_click_handler())
+        return tree
 
-    def swap_form_visibility(self, form_to_hide, form_to_show):
-        form_to_hide.grid_forget()
-        form_to_show.grid(padx=5, pady=15)
+    def _create_base_forms(self, display_fields, button_configs):
+        """Create standard forms with configurable buttons"""
+        forms = {}
+
+        # Create main panel
+        forms['main'] = BaseForm(self, display_fields)
+        forms['main'].grid(pady=20)
+
+        # Create new item form
+        forms['new'] = BaseForm(self, display_fields)
+        forms['new'].show_standard_fields(4)
+
+        # Create edit form
+        forms['edit'] = BaseForm(self, display_fields)
+        forms['edit'].show_standard_fields(4)
+
+        # Add buttons to each form
+        for form_name, buttons in button_configs.items():
+            if form_name in forms:
+                self.create_buttons(forms[form_name], buttons)
+
+        return forms
+
+    def hide_forms(self):
+        """Hide all form components"""
+        for attr_name in dir(self):
+            attr = getattr(self, attr_name)
+            if isinstance(attr, BaseForm):
+                attr.grid_remove()
+
+    def create_buttons(self,button_form,button_data):
+        for text, style, row, col, colspan, command in button_data:
+            btn = tb.Button(button_form, text=text, bootstyle=style, command=command)
+            btn.grid(row=row, column=col, columnspan=colspan, pady=20)
 
     def generate_csv_template(self, headers, filename="template"):
         #"""Common method for CSV template generation#"""
@@ -43,3 +89,49 @@ class BaseTab(tb.Frame):
     def confirm_delete(self, message="Are you sure you want to delete this item?"):
         #"""Common delete confirmation dialog#"""
         return messagebox.askyesno("Confirm Delete", message)
+
+    def upload_csv(self, header_row, success_message="Items imported successfully"):
+        #"""Generic CSV file upload handler"""
+        file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
+        if not file_path:
+            return
+        try:
+            self._process_csv_file(file_path, header_row)
+            self.show_success(success_message)
+        except Exception as e:
+            self.show_error(f"Failed to read CSV file: {str(e)}")
+
+    def _process_csv_file(self, file_path, header_row):
+        #"""Generic CSV file processor"""
+        with open(file_path, 'r') as file:
+            csv_reader = csv.reader(file)
+            first_row = next(csv_reader)
+
+            if first_row != header_row:
+                self.dictionary_to_convert = self._generate_dictionary_from_csv_row(first_row, header_row)
+                self._process_row(self.dictionary_to_convert)
+
+            for row in csv_reader:
+
+                self.dictionary_to_convert = self._generate_dictionary_from_csv_row(row, header_row)
+                self._process_row(self.dictionary_to_convert)
+
+    def _generate_dictionary_from_csv_row(self, csv_row, header_row):
+        #"""Generate dictionary from CSV row using header row as keys"""
+        if len(csv_row) != len(header_row):
+            raise ValueError(f"CSV row length ({len(csv_row)}) does not match header length ({len(header_row)})")
+
+        try:
+            return {header: value for header, value in zip(header_row, csv_row)}
+        except Exception as e:
+            raise ValueError(f"Error creating dictionary from CSV row: {str(e)}")
+
+    def _process_row(self, row):
+        #"""Abstract method to be implemented by child classes"""
+        raise NotImplementedError("Subclasses must implement _process_row")
+
+    def _reload_items(self):
+        #"""Abstract method to be implemented by child classes"""
+        raise NotImplementedError("Subclasses must implement _reload_items")
+
+

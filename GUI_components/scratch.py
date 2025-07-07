@@ -76,7 +76,7 @@ class UnitTab(BaseTab):
         self.edit_unit_form.show_standard_fields(self.FIELD_DEFINITIONS, 4)
 
     def create_new_unit(self):
-        unit_values = self.new_unit_form.submit_form(self.main_button_panel)
+        unit_values = self.new_unit_form.validate_and_collect_form_values(self.main_button_panel)
         if unit_values:
             try:
                 self._save_new_unit(unit_values)
@@ -93,7 +93,7 @@ class UnitTab(BaseTab):
             values.get('end_date'),
             values.get('description')
         )
-        new_unit.add_unit()
+        new_unit.add_new_unit()
         print("Unit created:", values)
 
     def upload_unit_csv(self):
@@ -127,7 +127,7 @@ class UnitTab(BaseTab):
                 datetime.strptime(row[4], self.DATE_FORMAT),
                 datetime.strptime(row[3], self.DATE_FORMAT),
                 row[5]
-            ).add_unit()
+            ).add_new_unit()
         except (ValueError, IndexError) as e:
             raise ValueError(f"Invalid data in CSV row: {str(e)}")
 
@@ -250,7 +250,7 @@ def upload_csv():
                         datetime.strptime(first_row[4], '%Y-%m-%d'),
                         datetime.strptime(first_row[3], '%Y-%m-%d'),
                         first_row[5]
-                    ).add_unit()
+                    ).add_new_unit()
                 except (ValueError, IndexError) as e:
                     messagebox.showerror("Error", f"Invalid data in CSV: {str(e)}")
                     return
@@ -264,7 +264,7 @@ def upload_csv():
                         datetime.strptime(row[4], '%Y-%m-%d'),
                         datetime.strptime(row[3], '%Y-%m-%d'),
                         row[5]
-                    ).add_unit()
+                    ).add_new_unit()
                 except (ValueError, IndexError) as e:
                     messagebox.showerror("Error", f"Invalid data in CSV: {str(e)}")
                     reload_units()
@@ -355,7 +355,7 @@ def create_new_unit():
             datetime.strptime(new_unit_closing_date_entry.entry.get(), '%m/%d/%Y'),
             datetime.strptime(new_unit_end_date_entry.entry.get(), '%m/%d/%Y'),
             new_unit_description_text.get("1.0", END)
-        ).add_unit()
+        ).add_new_unit()
         reload_units()
         new_unit_frame.pack_forget()
         add_unit_button.pack(pady=20)
@@ -463,7 +463,7 @@ def delete_unit():
         selected = units_tree.selection()[0]
         unit = Persistance.session.query(Unit.Unit).filter_by(
         unit_sequence=units_tree.item(selected)['values'][0]).first()
-        unit.delete_unit()
+        unit._delete_selected_unit()
         reload_units()
         edit_unit_frame.pack_forget()
         add_unit_button.pack(pady=20)

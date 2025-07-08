@@ -27,7 +27,7 @@ class ProjectManager:
         tabs = {
             "Units": UnitTab,
             #"Objectives": ObjectiveTab,
-            #"Classroom Locations": ClassroomLocationTab
+            "Classroom Locations": ClassroomLocationTab
           # "Consumables": ConsumableTab,
         }
 

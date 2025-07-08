@@ -22,6 +22,11 @@ class BaseForm(tb.Frame):
     def clear_validation_error(self):
         self.validation_label.config(text="")
 
+    def create_buttons(self, button_data):
+        for text, style, row, col, colspan, command in button_data:
+            btn = tb.Button(self, text=text, bootstyle=style, command=command)
+            btn.grid(row=row, column=col, columnspan=colspan, pady=20)
+
     def clear_form(self):
         for field_label, widget in self.entry_dictionary.items():
             if isinstance(widget, tb.DateEntry):
@@ -188,6 +193,7 @@ class BaseForm(tb.Frame):
             return self.value_list
         else:
             return None
+
 
 
 

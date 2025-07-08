@@ -1,95 +1,179 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy import Integer, String, Text, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Mapped, mapped_column
 from Persistance import Base, session
 
 
 class Unit(Base):
+    """Represents a teaching unit with sequence, dates and description."""
+
     __tablename__ = 'units'
 
-    unit_ID: Mapped[int] = mapped_column(primary_key=True)
-    unit_sequence: Mapped[int] = mapped_column(Integer, unique=True)
-    unit_name: Mapped[str] = mapped_column(String(255))
-    unit_description: Mapped[str] = mapped_column(Text)
-    unit_opening_date: Mapped[datetime] = mapped_column(DateTime)
-    unit_end_date: Mapped[datetime] = mapped_column(DateTime)
-    unit_closing_date: Mapped[datetime] = mapped_column(DateTime)
+    # Constants for validation
+    MAX_STRING_LENGTH = 255
+    MIN_SEQUENCE = 0
+    MAX_SEQUENCE = 30
 
-    def __init__(self, unit_name: str, unit_sequence: int,
-                 unit_opening_date: datetime, unit_closing_date: datetime,
-                 unit_end_date: datetime, unit_description: str):
-        self.unit_name = unit_name
-        self.unit_sequence = unit_sequence
-        self.unit_opening_date = unit_opening_date
-        self.unit_closing_date = unit_closing_date
-        self.unit_end_date = unit_end_date
-        self.unit_description = unit_description
+    # Database columns
+    unit_ID: Mapped[int] = mapped_column('unit_ID', primary_key=True)
+    _sequence: Mapped[int] = mapped_column('unit_sequence', Integer, unique=True)
+    _name: Mapped[str] = mapped_column('unit_name', String(MAX_STRING_LENGTH))
+    _description: Mapped[str] = mapped_column('unit_description', Text)
+    _opening_date: Mapped[datetime] = mapped_column('unit_opening_date', DateTime)
+    _end_date: Mapped[datetime] = mapped_column('unit_end_date', DateTime)
+    _closing_date: Mapped[datetime] = mapped_column('unit_closing_date', DateTime)
 
-        if not self._validate_dates():
-            raise ValueError("Invalid date sequence - unit cannot close or end before it opens: opens:f'{self.unit_opening_date}', closes: '{self.unit_closing_date}', ends: '{self.unit_end_date}'")
+    def __init__(self, name: str, sequence: int,
+                 opening_date: datetime, closing_date: datetime,
+                 end_date: datetime, description: str = "") -> None:
+        """Initialize a new unit.
+        
+        Args:
+            name: The name of the unit
+            sequence: The sequence number of the unit
+            opening_date: Date when unit opens
+            closing_date: Date when unit closes
+            end_date: Date when unit ends
+            description: Detailed description of the unit
+        """
+        """Initialize a new unit."""
+        # First set the basic attributes
+        self.name = name
+        self.sequence = sequence
+        self.description = description
 
-    def _validate_dates(self) -> bool:
-        return (self.unit_opening_date < self.unit_end_date <= self.unit_closing_date)
+        # Set dates directly first
+        self._opening_date = opening_date
+        self._closing_date = closing_date
+        self._end_date = end_date
 
+        # Now validate all dates
+        if not self.are_dates_valid():
+            raise ValueError(
+                "Invalid date sequence: opening_date must be before end_date, which must be before or equal to closing_date")
 
-    def add_new_unit(self, session) -> None:
-        #"""Add unit to database#"""
+        if not self.validate_unique_sequence():
+            raise ValueError(f"Unit: {self.name} with sequence number {self.sequence} already exists")
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        if not value or len(value) > self.MAX_STRING_LENGTH:
+            raise ValueError(f"Name must be between 1 and {self.MAX_STRING_LENGTH} characters")
+        self._name = value
+
+    @property
+    def sequence(self) -> int:
+        return self._sequence
+
+    @sequence.setter
+    def sequence(self, value: int) -> None:
+        sequence_value = int(value)
+        if not self.MIN_SEQUENCE <= sequence_value <= self.MAX_SEQUENCE:
+            raise ValueError(f"Sequence must be between {self.MIN_SEQUENCE} and {self.MAX_SEQUENCE}")
+        self._sequence = sequence_value
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @description.setter
+    def description(self, value: str) -> None:
+        self._description = value or ""
+
+    @property
+    def opening_date(self) -> datetime:
+        return self._opening_date
+
+    @opening_date.setter
+    def opening_date(self, value: datetime) -> None:
+        if not isinstance(value, datetime):
+            raise ValueError("Opening date must be a datetime object")
+        self._opening_date = value
+
+    @property
+    def end_date(self) -> datetime:
+        return self._end_date
+
+    @end_date.setter
+    def end_date(self, value: datetime) -> None:
+        if not isinstance(value, datetime):
+            raise ValueError("End date must be a datetime object")
+        self._end_date = value
+
+    @property
+    def closing_date(self) -> datetime:
+        return self._closing_date
+
+    @closing_date.setter
+    def closing_date(self, value: datetime) -> None:
+        if not isinstance(value, datetime):
+            raise ValueError("Closing date must be a datetime object")
+        self._closing_date = value
+
+    def are_dates_valid(self) -> bool:
+        """Validate that dates are in correct sequence."""
+        return (self.opening_date < self.end_date <= self.closing_date)
+
+    def validate_unique_sequence(self) -> bool:
+        """Validate that the unit sequence is unique."""
+        existing_unit = session.query(Unit).filter_by(
+            _sequence=self.sequence).first()
+        return existing_unit is None
+
+    def save(self) -> None:
+        """Save or update the unit in the database."""
         try:
-            # to generate a nicer error message we do a little pre-checking
-            existing_unit = session.query(Unit).filter_by(unit_sequence=self.unit_sequence).first()
-            if existing_unit:
-                raise ValueError(f"Unit with sequence number {self.unit_sequence} already exists")
-            if not self._validate_dates():
-                raise ValueError("Invalid date sequence - unit cannot close or end before it opens.")
+            existing_unit = session.query(Unit).filter_by(
+                _sequence=self.sequence).first()
+            if existing_unit and existing_unit.unit_id != getattr(self, 'unit_id', None):
+                raise ValueError(f"Unit with sequence number {self.sequence} already exists")
+            if not self.are_dates_valid():
+                raise ValueError("End date must be after opening date and before or equal to closing date")
+
             session.add(self)
             session.commit()
-        except SQLAlchemyError as e:
+        except Exception as e:
             session.rollback()
             raise
 
-    def update_unit(self, session) -> None:
-        ###"""Update unit in database#"""
-        try:
-            session.merge(self)
-            session.commit()
-        except SQLAlchemyError as e:
-            print(e)
-            session.rollback()
-            raise
-
-    def delete_unit(self, session) -> None:
-        #"""Delete unit from database#"""
+    def delete(self) -> None:
+        """Delete the unit from the database."""
         try:
             session.delete(self)
             session.commit()
-        except SQLAlchemyError as e:
+        except Exception as e:
             session.rollback()
             raise
 
     @classmethod
-    def create_from_dict(cls, data_dict: dict) -> 'Unit':
-        # """Create a Unit instance from a dictionary of attributes#"""
-        required_fields = ['unit_name', 'unit_sequence', 'unit_opening_date',
-                           'unit_closing_date', 'unit_end_date', 'unit_description']
-
-        if not all(field in data_dict for field in required_fields):
-            raise ValueError("Missing required fields")
-
-        return cls(**data_dict)
+    def get_by_id(cls, unit_id: int) -> Optional['Unit']:
+        """Retrieve a unit by its ID."""
+        return session.query(cls).filter_by(unit_id=unit_id).first()
 
     @classmethod
-    def get_all_units_by_sequence(cls) -> List['Unit']:
-        # """Retrieve all units ordered by sequence#"""
-        return session.query(cls).order_by(cls.unit_sequence).all()
+    def get_by_sequence(cls, sequence: int) -> Optional['Unit']:
+        """Retrieve a unit by its sequence number."""
+        return session.query(cls).filter_by(_sequence=sequence).first()
 
     @classmethod
-    def get_unit_by_sequence(cls, sequence) -> 'Unit':
-        # """Retrieve unit from database by sequence number#"""
-        return session.query(cls).filter_by(unit_sequence=sequence).first()
+    def get_all_order_by_sequence(cls) -> List['Unit']:
+        """Retrieve all units ordered by sequence."""
+        return session.query(cls).order_by(cls._sequence).all()
 
     @classmethod
-    def get_unit_by_ID(cls, ID) -> 'Unit':
-        # """Retrieve unit from database by sequence number#"""
-        return session.query(cls).filter_by(unit_ID=ID).first()
+    def create_empty_unit(cls) -> 'Unit':
+        """Create an empty Unit instance with default values."""
+        now = datetime.now()
+        return cls(
+            name="New Unit",
+            sequence=0,
+            opening_date=now,
+            closing_date=now + timedelta(days=1),
+            end_date=now + timedelta(days=1),
+            description=""
+        )

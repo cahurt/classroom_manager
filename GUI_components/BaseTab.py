@@ -61,11 +61,6 @@ class BaseTab(tb.Frame):
             if isinstance(attr, BaseForm):
                 attr.grid_remove()
 
-    def create_buttons(self,button_form,button_data):
-        for text, style, row, col, colspan, command in button_data:
-            btn = tb.Button(button_form, text=text, bootstyle=style, command=command)
-            btn.grid(row=row, column=col, columnspan=colspan, pady=20)
-
     def generate_csv_template(self, headers, filename="template"):
         #"""Common method for CSV template generation#"""
         file_path = filedialog.asksaveasfilename(
@@ -106,15 +101,25 @@ class BaseTab(tb.Frame):
         with open(file_path, 'r') as file:
             csv_reader = csv.reader(file)
             first_row = next(csv_reader)
+            CSV_generated_objects = []
+            csv_rows = 0
 
             if first_row != header_row:
                 self.dictionary_to_convert = self._generate_dictionary_from_csv_row(first_row, header_row)
-                self._process_row(self.dictionary_to_convert)
+                CSV_generated_objects.append(self._process_row(self.dictionary_to_convert))
+                csv_rows += 1
 
             for row in csv_reader:
-
                 self.dictionary_to_convert = self._generate_dictionary_from_csv_row(row, header_row)
-                self._process_row(self.dictionary_to_convert)
+                CSV_generated_objects.append(self._process_row(self.dictionary_to_convert))
+                csv_rows += 1
+
+            if csv_rows == len(CSV_generated_objects):
+                for item in CSV_generated_objects:
+                    self._save_CSV_row(item)
+            else:
+                raise ValueError(f"CSV not processed sue to previous error")
+
 
     def _generate_dictionary_from_csv_row(self, csv_row, header_row):
         #"""Generate dictionary from CSV row using header row as keys"""
@@ -130,8 +135,9 @@ class BaseTab(tb.Frame):
         #"""Abstract method to be implemented by child classes"""
         raise NotImplementedError("Subclasses must implement _process_row")
 
-    def _reload_items(self):
+    def _save_CSV_row(self, row):
         #"""Abstract method to be implemented by child classes"""
-        raise NotImplementedError("Subclasses must implement _reload_items")
+        raise NotImplementedError("Subclasses must implement _process_row")
+
 
 

@@ -24,246 +24,194 @@ class ClassroomLocationTab(BaseTab):
         ('Label Color', 'classroom_location_label_color', 'color', []),
         ]
 
-    TREE_COLUMNS = [('Name', 'classroom_location_name'),
-                    ('Description', 'classroom_location_description'),
-                    ('Label', 'classroom_location_label'),
-                    ('Color','classroom_location_label_color')]
+    TREE_COLUMNS = [('ID', 'classroom_location_ID', 0),
+                    ('Name', 'classroom_location_name', 50),
+                    ('Description', 'classroom_location_description',100),
+                    ('Label', 'classroom_location_label',100),
+                    ('Color','classroom_location_label_color',50)]
 
     CSV_HEADERS = ['classroom_location_name', 'classroom_location_description', 'classroom_location_label','classroom_location_label_size',
                    'classroom_location_label_color']
 
-    def __init__(self, notebook):
-        super().__init__(notebook)
-        self._setup_variables()
-        self._setup_ui()
 
-    def _setup_variables(self):
-        #"""Initialize form variables#"""
-        self.new_classroom_location_vars = self._create_classroom_location_variables()
-        self.edit_classroom_location_vars = self._create_classroom_location_variables()
+def __init__(self, notebook):
+    super().__init__(notebook)
+    self._setup_variables()
+    self._setup_ui()
 
-    def _create_classroom_location_variables(self):
-        #"""Create StringVar variables for classroom_location forms#"""
-        return {field: tb.StringVar(value="") for field in self.CSV_HEADERS}
 
-    def _setup_ui(self):
-        #"""Setup UI components#"""
-        self._create_header()
-        self._create_treeview()
-        self._create_forms()
-        self._setup_buttons()
+def _setup_variables(self):
+    pass
 
-    def _create_header(self):
-        #"""Create header label#"""
-        self.classroom_locations_label = tb.Label(self, text="ClassroomLocations", font=("Helvetica", 18))
-        self.classroom_locations_label.grid(pady=20)
 
-    def _create_treeview(self):
-        #"""Create and configure treeview#"""
-        self.classroom_locations_tree = BaseTreeView(self, self.TREE_COLUMNS)
-        self.classroom_locations_tree.grid(padx=5, pady=15)
-        self.classroom_locations_tree.bind('<Double-1>', lambda e: self.show_edit_classroom_location())
-        self._reload_classroom_locations()
+def _setup_ui(self):
+    # """Setup UI components#"""
+    self.create_header("ClassroomLocations")
+    self._create_treeviews()
+    self._create_forms()
 
-    def _create_forms(self):
-        #"""Create form panels#"""
-        self.main_button_panel = BaseForm(self)
-        self.main_button_panel.grid(pady=20)
 
-        self.new_classroom_location_form = BaseForm(self)
-        self.new_classroom_location_form.show_standard_fields(self.CLASSROOM_LOCATION_FIELDS, 4)
+def _create_treeviews(self):
+    # """Create and configure treeviews"""
+    self.classroom_locations_tree = self._create_base_treeview(
+        self.TREE_COLUMNS,
+        double_click_handler=self._load_edit_state
+    )
+    self._reload_classroom_locations_tree()
 
-        self.edit_classroom_location_form = BaseForm(self)
-        self.edit_classroom_location_form.show_standard_fields(self.CLASSROOM_LOCATION_FIELDS, 4)
 
-    def _setup_buttons(self):
-        #"""Setup form buttons#"""
-        self._create_main_buttons()
-        self._create_new_classroom_location_buttons()
-        self._create_edit_classroom_location_buttons()
+def _create_forms(self):
+    # setup form buttons,
+    # text, style, row, col, colspan, command
+    self.edit_buttons = [
+        ("Update", "success", 5, 0, 2, self._submit_edited_classroom_location),
+        ("Delete", "danger", 5, 2, 1, self._delete_selected_classroom_location),
+        ("Cancel", "warning", 5, 3, 2, self._load_base_state)
+    ]
 
-    def _create_main_buttons(self):
-        #"""Create main panel buttons#"""
-        buttons = [
-            ("Upload CSV", "default outline", self.upload_classroom_location_csv),
-            ("Download Template", "info outline",
-             lambda: self.generate_csv_template(self.CSV_HEADERS, 'classroom_location_template.csv')),
-            ("Add ClassroomLocation", "danger", self.load_new_classroom_location_state)
-        ]
+    self.main_buttons = [
+        ("Upload CSV", "default outline", 5, 0, 2, self.upload_classroom_location_csv),
+        ("Download Template", "info outline", 5, 2, 1,
+         lambda: self.generate_csv_template(self.CSV_HEADERS, 'classroom_location_template')),
+        ("Add ClassroomLocation", "danger", 5, 4, 2, self._load_new_classroom_location_state)
+    ]
 
-        for text, style, command in buttons:
-            btn = tb.Button(self.main_button_panel, text=text, bootstyle=style, command=command)
-            btn.grid(pady=20)
+    self.new_buttons = [
+        ("Create", "success", 5, 0, 2, self._create_new_classroom_location_from_form),
+        ("Cancel", "warning", 5, 3, 2, self._load_base_state)
+    ]
 
-    def load_new_classroom_location_state(self):
-        self.swap_form_visibility(self.main_button_panel, self.new_classroom_location_form)
-        self.new_classroom_location_form.clear_form()
+    # """Create form panels#"""
+    self.main_button_panel = BaseForm(self, self.CLASSROOM_LOCATION_DISPLAY_FIELDS)
+    self.main_button_panel.grid(pady=20)
+    self.create_buttons(self.main_button_panel, self.main_buttons)
 
-    def _create_new_classroom_location_buttons(self):
-        #"""Create new classroom_location form buttons#"""
-        submit_btn = tb.Button(self.new_classroom_location_form, text="Create", bootstyle="success",
-                               command=lambda: self.new_classroom_location_form.validate_and_collect_form_values(self.create_new_classroom_location()))
-        submit_btn.grid(row=4, column=0, columnspan=5, pady=20)
+    self.new_classroom_location_form = BaseForm(self, self.CLASSROOM_LOCATION_DISPLAY_FIELDS)
+    self.new_classroom_location_form.show_standard_fields(4)
+    self.create_buttons(self.new_classroom_location_form, self.new_buttons)
 
-        cancel_btn = tb.Button(self.new_classroom_location_form, text="Cancel", bootstyle="danger",
-                               command=lambda: self.swap_form_visibility(self.new_classroom_location_form, self.main_button_panel))
-        cancel_btn.grid(row=4, column=1, columnspan=5, pady=20)
+    self.edit_classroom_location_form = BaseForm(self, self.CLASSROOM_LOCATION_DISPLAY_FIELDS)
+    self.edit_classroom_location_form.show_standard_fields(4)
+    self.create_buttons(self.edit_classroom_location_form, self.edit_buttons)
 
-    def _create_edit_classroom_location_buttons(self):
-        #"""Create edit classroom_location form buttons#"""
-        buttons = [
-            ("Update", "success", 0, 2, self.submit_edit_classroom_location),
-            ("Delete", "danger", 2, 1, self.delete_classroom_location),
-            ("Cancel", "warning", 3, 2,
-             lambda: self.swap_form_visibility(self.edit_classroom_location_form, self.main_button_panel))
-        ]
 
-        for text, style, col, colspan, command in buttons:
-            btn = tb.Button(self.edit_classroom_location_form, text=text, bootstyle=style, command=command)
-            btn.grid(row=4, column=col, columnspan=colspan, pady=20)
+def _load_new_classroom_location_state(self):
+    self.hide_forms()
+    self.new_classroom_location_form.clear_form()
+    self.new_classroom_location_form.grid()
 
-    def upload_classroom_location_csv(self):
-        #"""Handle CSV file upload#"""
-        file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
-        if not file_path:
+
+def _load_base_state(self):
+    self.hide_forms()
+    self.new_classroom_location_form.clear_form()
+    self.edit_classroom_location_form.clear_form()
+    self.main_button_panel.grid()
+
+
+def _load_edit_state(self):
+    # validation should be redundant here as it should only be called as an action
+    try:
+        if not self.classroom_locations_tree.validate_item_is_selected():
             return
+    except Exception as e:
+        pass
 
-        try:
-            self._process_csv_file(file_path)
-            self.show_success("ClassroomLocations imported successfully")
-        except Exception as e:
-            self.show_error(f"Failed to read CSV file: {str(e)}")
-        finally:
-            self._reload_classroom_locations()
+    field_values = self.classroom_locations_tree._create_dictionary_from_selected_tree_item_and_values(self.TREE_COLUMNS)
+    self.edit_classroom_location_form.populate_fields(field_values)
+    self.hide_forms()
+    self.edit_classroom_location_form.grid()
 
-    def _process_csv_file(self, file_path):
-        #"""Process uploaded CSV file#"""
-        with open(file_path, 'r') as file:
-            csv_reader = csv.reader(file)
-            first_row = next(csv_reader)
 
-            if first_row != self.CSV_HEADERS:
-                self._process_classroom_location_row(first_row)
+def upload_classroom_location_csv(self):
+    # """Handle ClassroomLocation CSV file upload - done in base tab"""
+    self.upload_csv(self.CSV_HEADERS, "ClassroomLocations imported successfully")
+    self._reload_classroom_locations_tree()
 
-            for row in csv_reader:
-                self._process_classroom_location_row(row)
 
-    def _process_classroom_location_row(self, row):
-        #"""Process single CSV row into ClassroomLocation object#"""
-        try:
-            classroom_location = ClassroomLocation.ClassroomLocation(
-                row[0],
-                row[1]
-             )
-            classroom_location.add_classroom_location()
-        except (ValueError, IndexError) as e:
-            raise ValueError(f"Invalid data in CSV: {str(e)}")
+def _process_row(self, row):
+    # all in this world this method does is call the specific create from dictionary method for the class and then persist
+    # at this point there should have been like 7 different error checks on the types, and the class method will catch anything else
+    # so we are not going to do anything beyond a basic try/catch validation
 
-    def create_new_classroom_location(self):
-        #"""Create new classroom_location from form data#"""
-        values = self.new_classroom_location_form.validate_and_collect_form_values(self.main_button_panel)
+    try:
+        classroom_location = ClassroomLocation.ClassroomLocation.create_from_dict(row)
+
+        classroom_location.add_new_classroom_location(session)
+    except (ValueError, IndexError) as e:
+        raise ValueError(f"Invalid data in CSV: {str(e)}")
+
+
+def _reload_classroom_locations_tree(self):
+    # this should be the only place where we have a query object for this tree or anything dealing with it
+    self.classroom_locations_tree.reload_tree(ClassroomLocation.ClassroomLocation.get_all_classroom_locations_by_sequence(), self.TREE_COLUMNS)
+
+
+def _submit_edited_classroom_location(self):
+    # """Submit edited classroom_location data#"""
+
+    try:
+        classroom_location = self.get_selected_classroom_location()
+
+        if classroom_location:
+            self._modify_classroom_location_from_form()
+            self._reload_classroom_locations_tree()
+            self._load_base_state()
+        else:
+            self.show_error("ClassroomLocation not found in database")
+    except Exception as e:
+        self.show_error(f"Failed to update classroom_location: {str(e)}")
+
+
+def _modify_classroom_location_from_form(self):
+    # """Update classroom_location with form values#"""
+    form_values = self.edit_classroom_location_form.validate_and_collect_form_values()
+    try:
+        classroom_location = ClassroomLocation.ClassroomLocation.create_from_dict(form_values)
+        classroom_location.classroom_location_ID = self.classroom_locations_tree.item(self.classroom_locations_tree.selection()[0])['values'][0]
+        classroom_location.update_classroom_location(session)
+    except (ValueError, IndexError) as e:
+        raise ValueError(f"Invalid data, the classroom_location was not updated: {str(e)}")
+
+
+def _create_new_classroom_location_from_form(self):
+    # """Create new classroom_location from form data#"""
+    try:
+        values = self.new_classroom_location_form.validate_and_collect_form_values()
         if values:
-            ClassroomLocation.ClassroomLocation(
-                values.get('classroom_location_name'),
-                values.get('classroom_location_description'),
-               ).add_classroom_location()
-            self._reload_classroom_locations()
+            ClassroomLocation.ClassroomLocation.create_from_dict(values).add_new_classroom_location(session)
+            self._reload_classroom_locations_tree()
+            self._load_base_state()
+    except Exception as e:
+        self.show_error(f"Failed to update classroom_location: {str(e)}")
 
-    def show_edit_classroom_location(self):
-        #"""Display edit form for selected classroom_location#"""
-        if not self.classroom_locations_tree.selection():
-            return
 
-        selected = self.classroom_locations_tree.selection()[0]
-        values = self.classroom_locations_tree.item(selected)['values']
+def _delete_selected_classroom_location(self):
+    # """Delete selected classroom_location#"""
 
-        self.hide_forms()
-        self.edit_classroom_location_form.grid()
-
-        field_values = self._create_field_values_dict(values)
-        self.edit_classroom_location_form.populate_fields(field_values)
-
-    def _create_field_values_dict(self, values):
-        #"""Create dictionary of field values from selected classroom_location#"""
-        return {
-            'classroom_location_name': values[0],
-            'classroom_location_description': values[1]
-        }
-
-    def hide_forms(self):
-        # """Hide all form components#"""
-        self.main_button_panel.grid_remove()
-        self.new_classroom_location_form.grid_remove()
-        self.edit_classroom_location_form.grid_remove()
-
-    def submit_edit_classroom_location(self):
-        #"""Submit edited classroom_location data#"""
-        if not self._validate_edit_classroom_location():
-            return
-
-        selected = self.classroom_locations_tree.selection()[0]
-        values = self.classroom_locations_tree.item(selected)['values']
-
+    if self.confirm_delete(f"Are you sure you want to delete selected classroom_location'?"):
         try:
-            classroom_location = self._get_classroom_location_by_name(values[0])
+            classroom_location = self.get_selected_classroom_location()
             if classroom_location:
-                self._update_classroom_location(classroom_location)
-                self._reload_classroom_locations()
-                self.swap_form_visibility(self.edit_classroom_location_form, self.main_button_panel)
-            else:
-                self.show_error("ClassroomLocation not found in database")
+                classroom_location.delete_classroom_location(session)
+                self._reload_classroom_locations_tree()
+                self._load_base_state()
+
         except Exception as e:
-            self.show_error(f"Failed to update classroom_location: {str(e)}")
+            self.show_error(f"Failed to delete classroom_location: {str(e)}")
 
-    def _validate_edit_classroom_location(self):
-        #"""Validate classroom_location selection for editing#"""
-        if not self.classroom_locations_tree.selection():
-            self.show_error("Please select a classroom_location to edit")
-            return False
-        return True
 
-    def _get_classroom_location_by_name(self, name):
-        #"""Retrieve classroom_location from database by name#"""
-        return Persistance.session.query(ClassroomLocation.ClassroomLocation).filter_by(classroom_location_name=name).first()
+def get_selected_classroom_location(self) -> ClassroomLocation:
+    if not self.classroom_locations_tree.validate_item_is_selected():
+        return None
 
-    def _update_classroom_location(self, classroom_location):
-        #"""Update classroom_location with form values#"""
-        form_values = self.edit_classroom_location_form.get_all_entries()
-        classroom_location.classroom_location_name = form_values.get('classroom_location_name')
-        classroom_location.classroom_location_description = form_values.get('classroom_location_description')
-        classroom_location.update_classroom_location()
-
-    def delete_classroom_location(self):
-        #"""Delete selected classroom_location#"""
-        if not self._validate_edit_classroom_location():
-            return
-
+    try:
         selected = self.classroom_locations_tree.selection()[0]
         values = self.classroom_locations_tree.item(selected)['values']
-
-        if self.confirm_delete(f"Are you sure you want to delete classroom_location '{values[0]}'?"):
-            try:
-                classroom_location = self._get_classroom_location_by_name(values[0])
-                if classroom_location:
-                    classroom_location.delete_classroom_location()
-                    self._reload_classroom_locations()
-                    self.swap_form_visibility(self.edit_classroom_location_form, self.main_button_panel)
-                else:
-                    self.show_error("ClassroomLocation not found in database")
-            except Exception as e:
-                self.show_error(f"Failed to delete classroom_location: {str(e)}")
-
-    def _reload_classroom_locations(self):
-        #"""Refresh classroom_locations display in treeview#"""
-        self.classroom_locations_tree.delete(*self.classroom_locations_tree.get_children())
-        classroom_locations = Persistance.session.query(ClassroomLocation.ClassroomLocation).order_by(ClassroomLocation.ClassroomLocation.classroom_location_name).all()
-
-        for classroom_location in classroom_locations:
-            self.classroom_locations_tree.insert('', 'end', values=self._format_classroom_location_values(classroom_location))
-
-    def _format_classroom_location_values(self, classroom_location):
-        #"""Format classroom_location values for display#"""
-        return (
-            classroom_location.classroom_location_name,
-            classroom_location.classroom_location_description
-            )
+        classroom_location = ClassroomLocation.ClassroomLocation.get_classroom_location_by_ID(values[0])
+        if classroom_location:
+            return classroom_location
+        else:
+            self.show_error("ClassroomLocation not found in database")
+            return None
+    except Exception as e:
+        self.show_error(f"Failed to delete classroom_location: {str(e)}")

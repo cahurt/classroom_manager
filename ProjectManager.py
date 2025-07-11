@@ -2,8 +2,10 @@
 import ttkbootstrap as tb
 import Persistance
 from GUI_components.ClassroomLocationsTab import ClassroomLocationsTab
+from GUI_components.ObjectiveTab import ObjectiveTab
 from GUI_components.UnitTab import UnitTab
-
+from Model.AddDefaultObjects import AddDefaultObjects
+from GUI_components.ProjectTab import ProjectTab
 
 class ProjectManager:
     def __init__(self):
@@ -12,6 +14,7 @@ class ProjectManager:
         self.setup_window()
         self.create_notebook()
         self.create_tabs()
+        #self. default_objects = AddDefaultObjects(add_project_categories=True)
 
     def setup_window(self):
         self.root.title("Foundations of Manufacturing 2025-2026")
@@ -24,7 +27,9 @@ class ProjectManager:
     def create_tabs(self):
         tabs = {
             "Units": UnitTab,
-            "Classroom Locations": ClassroomLocationsTab
+            "Classroom Locations": ClassroomLocationsTab,
+            "Objectives": ObjectiveTab,
+            "Projects": ProjectTab
         }
 
         for label, tab_class in tabs.items():

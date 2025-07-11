@@ -3,6 +3,10 @@ from sqlalchemy import String, Integer, Text
 from sqlalchemy.orm import mapped_column, relationship
 from sqlalchemy.orm.attributes import Mapped
 from Persistance import Base, session
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .Project import Project
+
 
 
 class Objective(Base):
@@ -12,21 +16,33 @@ class Objective(Base):
 
     # Constants for validation
     MAX_STRING_LENGTH = 255
+    MIN_HOURS = 0
+    MAX_HOURS = 1000
 
     # Database columns
     objective_ID: Mapped[int] = mapped_column('objective_ID', primary_key=True)
-    _name: Mapped[str] = mapped_column('objective_name', String(MAX_STRING_LENGTH))
+    _name: Mapped[str] = mapped_column('objective_name', String(MAX_STRING_LENGTH), nullable=False)
     _description: Mapped[str] = mapped_column('objective_description', Text)
+    _hours_required: Mapped[int] = mapped_column('hours_required', Integer, default=0, nullable=False)
+    _hours_allocated: Mapped[int] = mapped_column('hours_allocated', Integer, default=0)
 
-    def __init__(self, name: str, description: str = ""):
+    #relationships
+    _projects: Mapped[List["Project"]] = relationship("Model.Project.Project", back_populates="_objective")
+
+    def __init__(self, name: str, description: str = "", hours_required: float = 0, hours_allocated: float = 0,
+                 ignore_validation=False):
         """Initialize a new objective.
 
         Args:
             name: The name of the objective
             description: Detailed description of the objective
+            hours_required: Required hours for the objective
+            hours_allocated: Allocated hours for the objective
         """
         self.name = name
         self.description = description
+        self.hours_required = hours_required
+        self.hours_allocated = hours_allocated
 
     @property
     def name(self) -> str:
@@ -46,6 +62,26 @@ class Objective(Base):
     def description(self, value: str) -> None:
         self._description = value or ""
 
+    @property
+    def hours_required(self) -> float:
+        return self._hours_required
+
+    @hours_required.setter
+    def hours_required(self, value: float) -> None:
+        if not self.MIN_HOURS <= value <= self.MAX_HOURS:
+            raise ValueError(f"Hours required must be between {self.MIN_HOURS} and {self.MAX_HOURS}")
+        self._hours_required = value
+
+    @property
+    def hours_allocated(self) -> float:
+        return self._hours_allocated
+
+    @hours_allocated.setter
+    def hours_allocated(self, value: float) -> None:
+        if not self.MIN_HOURS <= value <= self.MAX_HOURS:
+            raise ValueError(f"Hours allocated must be between {self.MIN_HOURS} and {self.MAX_HOURS}")
+        self._hours_allocated = value
+
     def save(self) -> None:
         """Save or update the objective in the database."""
         session.add(self)
@@ -55,6 +91,18 @@ class Objective(Base):
         """Delete the objective from the database."""
         session.delete(self)
         session.commit()
+
+
+    @property
+    def projects(self) -> List['Project']:
+        return self._projects
+
+
+    @projects.setter
+    def projects(self, value: List['Project']) -> None:
+        self._projects = value
+
+
 
     @classmethod
     def get_by_id(cls, objective_ID: int) -> Optional['Objective']:
@@ -70,4 +118,3 @@ class Objective(Base):
     def get_all_order_by_name(cls) -> List['Objective']:
         """Retrieve all objectives ordered by name."""
         return session.query(cls).order_by(cls._name).all()
-   

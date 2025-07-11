@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy import Integer, String, Text, DateTime
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from Persistance import Base, session
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .Project import Project
+
 
 
 class Unit(Base):
@@ -23,6 +27,9 @@ class Unit(Base):
     _opening_date: Mapped[datetime] = mapped_column('unit_opening_date', DateTime)
     _end_date: Mapped[datetime] = mapped_column('unit_end_date', DateTime)
     _closing_date: Mapped[datetime] = mapped_column('unit_closing_date', DateTime)
+
+    # Relationships
+    _projects_in_unit: Mapped[List["Project"]] = relationship("Model.Project.Project", back_populates="_unit")
 
     def __init__(self, name: str, sequence: int,
                  opening_date: datetime, closing_date: datetime,
@@ -115,6 +122,14 @@ class Unit(Base):
         if not isinstance(value, datetime):
             raise ValueError("Closing date must be a datetime object")
         self._closing_date = value
+
+    @property
+    def projects_in_unit(self) -> List["Project"]:
+        return self._projects_in_unit
+
+    @projects_in_unit.setter
+    def projects_in_unit(self, value: List["Project"]) -> None:
+        self._projects_in_unit = value
 
     def are_dates_valid(self) -> bool:
         """Validate that dates are in correct sequence."""

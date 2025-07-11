@@ -138,7 +138,7 @@ class UnitTab(BaseTab):
 
     def _reload_units_tree(self):
         # this should be the only place where we have a query object for this tree or anything dealing with it
-        self.units_tree.reload_tree(Unit.Unit.get_all_order_by_sequence(), self.TREE_COLUMNS)
+        self.units_tree.reload_tree(Unit.get_all_order_by_sequence(), self.TREE_COLUMNS)
 
     def _create_unit_from_dictionary(self, dictionary) -> Unit:
 
@@ -147,12 +147,11 @@ class UnitTab(BaseTab):
         #try to get an existing unit
 
         if 'unit_ID' in dictionary:
-            unit = Unit.Unit.get_by_id(dictionary['unit_ID'])
+            unit = Unit.get_by_id(dictionary['unit_ID'])
 
         #if none exists: make a new one
         if not unit:
-            print("no unit found in dict function, making a new one")
-            unit = Unit.Unit(
+            unit = Unit(
                 name=dictionary['name'],
                 sequence=dictionary['sequence'],
                 opening_date=dictionary['opening_date'],
@@ -162,7 +161,6 @@ class UnitTab(BaseTab):
                 ignore_validation=True
             )
             if 'unit_ID' in dictionary:
-                print(f"set unit ID from dict function as {dictionary['unit_ID']}")
                 unit.unit_ID = dictionary['unit_ID']
 
         #if one does, we set values directly
@@ -243,7 +241,7 @@ class UnitTab(BaseTab):
         try:
             selected = self.units_tree.selection()[0]
             values = self.units_tree.item(selected)['values']
-            unit = Unit.Unit.get_by_id(values[0])
+            unit = Unit.get_by_id(values[0])
             if unit:
                 return unit
             else:

@@ -1,41 +1,73 @@
-from typing import List
-from Persistance import *
-from sqlalchemy import Integer, DateTime, String
-from sqlalchemy.orm import mapped_column, Mapped, relationship
-#from Model import Project
-from typing import Optional
+from typing import List, Optional
+from sqlalchemy import String, Integer, Text
+from sqlalchemy.orm import mapped_column, relationship
+from sqlalchemy.orm.attributes import Mapped
+from Persistance import Base, session
+
 
 class Objective(Base):
+    """Represents a learning objective with specific properties."""
+
     __tablename__ = 'objectives'
 
-    # Unique attributes
-    objective_ID: Mapped[int] = mapped_column(primary_key=True)
-    objective_name: Mapped[str] = mapped_column(String(255))
-    objective_description: Mapped[str] = mapped_column(Text)
+    # Constants for validation
+    MAX_STRING_LENGTH = 255
 
-    # One to Many relationships
+    # Database columns
+    objective_ID: Mapped[int] = mapped_column('objective_ID', primary_key=True)
+    _name: Mapped[str] = mapped_column('objective_name', String(MAX_STRING_LENGTH))
+    _description: Mapped[str] = mapped_column('objective_description', Text)
 
-    # Many to One relationships
-    #objective_projects: Mapped[List["Project"]] = relationship(back_populates="project_objective")
-    # Many to Many relationships
+    def __init__(self, name: str, description: str = ""):
+        """Initialize a new objective.
 
-    def __init__(self, objective_name, objective_description):
-        self.objective_name = objective_name
-        self.objective_description = objective_description
+        Args:
+            name: The name of the objective
+            description: Detailed description of the objective
+        """
+        self.name = name
+        self.description = description
 
-    def add_objective(self):
-        # Create a new project
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        if not value or len(value) > self.MAX_STRING_LENGTH:
+            raise ValueError(f"Name must be between 1 and {self.MAX_STRING_LENGTH} characters")
+        self._name = value
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @description.setter
+    def description(self, value: str) -> None:
+        self._description = value or ""
+
+    def save(self) -> None:
+        """Save or update the objective in the database."""
         session.add(self)
         session.commit()
 
-    def update_objective(self):
-        session.commit()
-
-    def delete_objective(self):
+    def delete(self) -> None:
+        """Delete the objective from the database."""
         session.delete(self)
         session.commit()
 
-@staticmethod
-def list_all_objectives():
+    @classmethod
+    def get_by_id(cls, objective_ID: int) -> Optional['Objective']:
+        """Retrieve an objective by its ID."""
+        return session.query(cls).filter_by(objective_ID=objective_ID).first()
 
-    return session.query(Objective).all()
+    @classmethod
+    def get_all(cls) -> List['Objective']:
+        """Retrieve all objectives."""
+        return session.query(cls).order_by(cls._name).all()
+
+    @classmethod
+    def get_all_order_by_name(cls) -> List['Objective']:
+        """Retrieve all objectives ordered by name."""
+        return session.query(cls).order_by(cls._name).all()
+   

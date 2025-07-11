@@ -26,7 +26,7 @@ class Unit(Base):
 
     def __init__(self, name: str, sequence: int,
                  opening_date: datetime, closing_date: datetime,
-                 end_date: datetime, description: str = "") -> None:
+                 end_date: datetime, description: str = "", ignore_validation=False) -> None:
         """Initialize a new unit.
         
         Args:
@@ -49,12 +49,13 @@ class Unit(Base):
         self._end_date = end_date
 
         # Now validate all dates
-        if not self.are_dates_valid():
+        if not self.are_dates_valid() and not ignore_validation:
             raise ValueError(
                 "Invalid date sequence: opening_date must be before end_date, which must be before or equal to closing_date")
 
-        if not self.validate_unique_sequence():
-            raise ValueError(f"Unit: {self.name} with sequence number {self.sequence} already exists")
+        if not self.validate_unique_sequence() and not ignore_validation:
+            raise ValueError(f"Unit: {self.name} with sequence number {self.sequence} already exists from init")
+
 
     @property
     def name(self) -> str:
@@ -121,22 +122,27 @@ class Unit(Base):
 
     def validate_unique_sequence(self) -> bool:
         """Validate that the unit sequence is unique."""
-        existing_unit = session.query(Unit).filter_by(
-            _sequence=self.sequence).first()
-        return existing_unit is None
+        existing_unit = session.query(Unit).filter_by(_sequence=self.sequence).first()
+
+        if existing_unit is not None and existing_unit.unit_ID != self.unit_ID:
+            return False
+
+        return True
 
     def save(self) -> None:
         """Save or update the unit in the database."""
         try:
-            existing_unit = session.query(Unit).filter_by(
-                _sequence=self.sequence).first()
-            if existing_unit and existing_unit.unit_id != getattr(self, 'unit_id', None):
-                raise ValueError(f"Unit with sequence number {self.sequence} already exists")
+            if not self.validate_unique_sequence():
+                raise ValueError(f"Unit with sequence number {self.sequence} already exists from save")
             if not self.are_dates_valid():
                 raise ValueError("End date must be after opening date and before or equal to closing date")
 
-            session.add(self)
+            if not self.exists(self.unit_ID):
+                print("Unit does not exist, adding")
+                session.add(self)
+
             session.commit()
+
         except Exception as e:
             session.rollback()
             raise
@@ -151,9 +157,14 @@ class Unit(Base):
             raise
 
     @classmethod
-    def get_by_id(cls, unit_id: int) -> Optional['Unit']:
+    def exists(self, unit_ID: int) -> bool:
+        """Check if a unit with the given ID exists in the database."""
+        return session.query(Unit).filter_by(unit_ID=unit_ID).first() is not None
+
+    @classmethod
+    def get_by_id(cls, unit_ID: int) -> Optional['Unit']:
         """Retrieve a unit by its ID."""
-        return session.query(cls).filter_by(unit_id=unit_id).first()
+        return session.query(cls).filter_by(unit_ID=unit_ID).first()
 
     @classmethod
     def get_by_sequence(cls, sequence: int) -> Optional['Unit']:
@@ -164,16 +175,3 @@ class Unit(Base):
     def get_all_order_by_sequence(cls) -> List['Unit']:
         """Retrieve all units ordered by sequence."""
         return session.query(cls).order_by(cls._sequence).all()
-
-    @classmethod
-    def create_empty_unit(cls) -> 'Unit':
-        """Create an empty Unit instance with default values."""
-        now = datetime.now()
-        return cls(
-            name="New Unit",
-            sequence=0,
-            opening_date=now,
-            closing_date=now + timedelta(days=1),
-            end_date=now + timedelta(days=1),
-            description=""
-        )

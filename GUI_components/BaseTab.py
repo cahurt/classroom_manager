@@ -101,25 +101,27 @@ class BaseTab(tb.Frame):
         with open(file_path, 'r') as file:
             csv_reader = csv.reader(file)
             first_row = next(csv_reader)
+            CSV_generated_object = None
             CSV_generated_objects = []
             csv_rows = 0
 
             if first_row != header_row:
                 self.dictionary_to_convert = self._generate_dictionary_from_csv_row(first_row, header_row)
-                CSV_generated_objects.append(self._process_row(self.dictionary_to_convert))
-                csv_rows += 1
+                CSV_generated_object = self._process_row(self.dictionary_to_convert)
+                if CSV_generated_object:
+                    CSV_generated_objects.append(CSV_generated_object)
+                    csv_rows += 1
 
             for row in csv_reader:
                 self.dictionary_to_convert = self._generate_dictionary_from_csv_row(row, header_row)
-                CSV_generated_objects.append(self._process_row(self.dictionary_to_convert))
-                csv_rows += 1
+                CSV_generated_object = self._process_row(self.dictionary_to_convert)
+                if CSV_generated_object:
+                    CSV_generated_objects.append(CSV_generated_object)
+                    csv_rows += 1
 
             if csv_rows == len(CSV_generated_objects):
                 for item in CSV_generated_objects:
                     self._save_CSV_row(item)
-            else:
-                raise ValueError(f"CSV not processed sue to previous error")
-
 
     def _generate_dictionary_from_csv_row(self, csv_row, header_row):
         #"""Generate dictionary from CSV row using header row as keys"""

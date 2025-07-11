@@ -131,7 +131,7 @@ class UnitTab(BaseTab):
 
     # *************************************************************
 
-    #    ----- Unit Specific Processing, no UI elements here, just all back-end stuff
+    #    ----- Unit-specific Processing, no UI elements here, just all back-end stuff
     #    ------ I have spoken
 
     # **************************************************************
@@ -140,17 +140,47 @@ class UnitTab(BaseTab):
         # this should be the only place where we have a query object for this tree or anything dealing with it
         self.units_tree.reload_tree(Unit.Unit.get_all_order_by_sequence(), self.TREE_COLUMNS)
 
+    def _create_unit_from_dictionary(self, dictionary) -> Unit:
+
+        unit = None
+
+        #try to get an existing unit
+
+        if 'unit_ID' in dictionary:
+            unit = Unit.Unit.get_by_id(dictionary['unit_ID'])
+
+        #if none exists: make a new one
+        if not unit:
+            print("no unit found in dict function, making a new one")
+            unit = Unit.Unit(
+                name=dictionary['name'],
+                sequence=dictionary['sequence'],
+                opening_date=dictionary['opening_date'],
+                end_date=dictionary['end_date'],
+                closing_date=dictionary['closing_date'],
+                description=dictionary['description'],
+                ignore_validation=True
+            )
+            if 'unit_ID' in dictionary:
+                print(f"set unit ID from dict function as {dictionary['unit_ID']}")
+                unit.unit_ID = dictionary['unit_ID']
+
+        #if one does, we set values directly
+        else:
+
+            unit.name = dictionary['name']
+            unit.sequence = dictionary['sequence']
+            unit.opening_date = dictionary['opening_date']
+            unit.end_date = dictionary['end_date']
+            unit.closing_date = dictionary['closing_date']
+            unit.description = dictionary['description']
+
+        return unit
+
     def _process_row(self, dictionary_from_row: dict):
 
         try:
-            unit = Unit.Unit(
-                name=dictionary_from_row['name'],
-                sequence=dictionary_from_row['sequence'],
-                opening_date=dictionary_from_row['opening_date'],
-                end_date=dictionary_from_row['end_date'],
-                closing_date=dictionary_from_row['closing_date'],
-                description=dictionary_from_row['description']
-            )
+            unit = self._create_unit_from_dictionary(dictionary_from_row)
 
         except (ValueError, IndexError) as e:
             raise ValueError(f"Invalid data in CSV: {str(e)}")
@@ -161,13 +191,12 @@ class UnitTab(BaseTab):
         """ we use a separate function to save so that we can process the CSV as a whole"""
         unit.save()
 
-
     def _create_new_unit_from_form(self):
         # """Create new unit from form data#"""
         try:
             values = self.new_unit_form.validate_and_collect_form_values()
             if values:
-                self.unit = Unit.Unit.create_from_dict(values)
+                self.unit = self._create_unit_from_dictionary(values)
                 self.unit.save()
                 self._reload_units_tree()
                 self._load_base_state()
@@ -178,28 +207,19 @@ class UnitTab(BaseTab):
         # """Submit edited unit data#"""
 
         try:
-            unit = self.get_selected_unit()
+            form_values = self.edit_unit_form.validate_and_collect_form_values()
+            existing_unit = self.get_selected_unit()
+            form_values['unit_ID'] = existing_unit.unit_ID
+            edited_unit = self._create_unit_from_dictionary(form_values)
 
-            if unit:
-                self._modify_unit_from_form()
+            if edited_unit and existing_unit:
+                edited_unit.save()
                 self._reload_units_tree()
                 self._load_base_state()
             else:
                 self.show_error("Unit not found in database")
         except Exception as e:
             self.show_error(f"Failed to update unit: {str(e)}")
-
-    def _modify_unit_from_form(self):
-        # """Update unit with form values#"""
-        form_values = self.edit_unit_form.validate_and_collect_form_values()
-        try:
-            unit = Unit.Unit.create_from_dict(form_values)
-            unit.unit_ID = self.units_tree.item(self.units_tree.selection()[0])['values'][0]
-            unit.update_unit(session)
-        except (ValueError, IndexError) as e:
-            raise ValueError(f"Invalid data, the unit was not updated: {str(e)}")
-
-
 
     def _delete_selected_unit(self):
         # """Delete selected unit#"""
@@ -208,7 +228,7 @@ class UnitTab(BaseTab):
             try:
                 unit = self.get_selected_unit()
                 if unit:
-                    unit.delete_unit(session)
+                    unit.delete()
                     self._reload_units_tree()
                     self._load_base_state()
 
@@ -223,7 +243,7 @@ class UnitTab(BaseTab):
         try:
             selected = self.units_tree.selection()[0]
             values = self.units_tree.item(selected)['values']
-            unit = Unit.Unit.get_unit_by_ID(values[0])
+            unit = Unit.Unit.get_by_id(values[0])
             if unit:
                 return unit
             else:

@@ -16,7 +16,7 @@ class ClassroomLocation(Base):
     MAX_LABEL_SIZE = 100
 
     # Database columns
-    classroom_location_id: Mapped[int] = mapped_column('classroom_location_ID', primary_key=True)
+    classroom_location_ID: Mapped[int] = mapped_column('classroom_location_ID', primary_key=True)
     _name: Mapped[str] = mapped_column('classroom_location_name', String(MAX_STRING_LENGTH))
     _label: Mapped[str] = mapped_column('classroom_location_label', String(MAX_STRING_LENGTH))
     _label_size: Mapped[int] = mapped_column('classroom_location_label_size', Integer)
@@ -24,7 +24,7 @@ class ClassroomLocation(Base):
     _description: Mapped[str] = mapped_column('classroom_location_description', Text)
 
     def __init__(self, name: str, label: str = "", label_size: int = 12,
-                 label_color: str = "#000000", description: str = ""):
+                 label_color: str = "#000000", description: str = "", ignore_validation=False):
         """Initialize a new classroom location.
         
         Args:
@@ -100,11 +100,16 @@ class ClassroomLocation(Base):
         session.commit()
 
     @classmethod
-    def get_by_id(cls, location_id: int) -> Optional['ClassroomLocation']:
+    def get_by_id(cls, location_ID: int) -> Optional['ClassroomLocation']:
         """Retrieve a classroom location by its ID."""
-        return session.query(cls).filter_by(classroom_location_id=location_id).first()
+        return session.query(cls).filter_by(classroom_location_ID=location_ID).first()
 
     @classmethod
     def get_all(cls) -> List['ClassroomLocation']:
         """Retrieve all classroom locations."""
+        return session.query(cls).order_by(cls._name).all()
+
+    @classmethod
+    def get_all_order_by_name(cls) -> List['ClassroomLocation']:
+        """Retrieve all classroom locations ordered by name."""
         return session.query(cls).order_by(cls._name).all()

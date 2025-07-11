@@ -8,6 +8,7 @@ class BaseForm(tb.Frame):
     # Class constants
     DATE_FORMAT = '%Y-%m-%d'
     DISPLAY_DATE_FORMAT = '%m/%d/%Y'
+    DEFAULT_COLOR = "#000000"
 
     def __init__(self, parent, display_labels):
         super().__init__(parent)
@@ -138,6 +139,8 @@ class BaseForm(tb.Frame):
                 if not self.entry_dictionary.get(field).get("1.0", "end-1c").strip():
                     self.show_validation_error(f"Field {label} is required")
                     return False
+            elif isinstance(self.entry_dictionary.get(field), tb.Button):
+                pass
             else:
                 value = self.entry_dictionary.get(field).get().strip()
                 if not value:
@@ -163,6 +166,9 @@ class BaseForm(tb.Frame):
                 elif isinstance(widget, tb.Text):
                     widget.delete("1.0", "end")
                     widget.insert("1.0", field_values.get(field))
+                elif isinstance(widget, tb.Button):
+                    widget.color = self.DEFAULT_COLOR
+                    pass
                 else:
                     widget.delete(0, 'end')
                     widget.insert(0, field_values.get(field))
@@ -180,6 +186,8 @@ class BaseForm(tb.Frame):
             elif isinstance(entry_widget, tb.Text):
                 value = entry_widget.get("1.0", "end-1c")  # Special handling for Text widgets
                 self.value_list[field_label] = value
+            elif hasattr(entry_widget, 'color'):  # Check if it's a color picker button
+                self.value_list[field_label] = entry_widget.color  # Get the color value directly from the button
             else:
                 value = entry_widget.get()  # Regular Entry widgets
                 self.value_list[field_label] = value

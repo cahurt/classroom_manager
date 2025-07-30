@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from typing import List
 import Persistance
 from sqlalchemy import Integer, DateTime, String, Boolean, Text, ForeignKey
@@ -173,6 +173,28 @@ class Project(Persistance.Base):
     @objective.setter
     def objective(self, value: Optional["Objective"]) -> None:
         self._objective = value
+
+
+    #*********************************************************************
+    #           Persistance methods
+    #*******************************************************************
+    def save(self) -> None:
+        """Save or update the project in the database."""
+        try:
+            session.add(self)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+
+    def delete(self) -> None:
+        """Delete the project from the database."""
+        try:
+            session.delete(self)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
 
     @classmethod
     def get_all_ordered_by_name(cls) -> List["Project"]:

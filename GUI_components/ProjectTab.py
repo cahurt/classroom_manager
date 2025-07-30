@@ -4,10 +4,11 @@ import ttkbootstrap as tb
 from datetime import datetime
 
 import Persistance
-from Model import Project
+from Model import Project, Unit
 from GUI_components.BaseTreeView import BaseTreeView
 from GUI_components.BaseForm import BaseForm
 from GUI_components.BaseTab import BaseTab
+
 
 
 class ProjectTab(BaseTab):
@@ -21,15 +22,17 @@ class ProjectTab(BaseTab):
 
     # (display label, field label, display type)
     PROJECT_FIELDS = [
-        ('Name', 'name', 'string(10,50)', []),
-        ('Description', 'description', 'text(15,5,1000)', []),
-        ('Opening Date', 'open_date', 'date', []),
-        ('Closing Date', 'close_date', 'date', []),
-        ('Days Allowed', 'days_allowed', 'int(10,0,20)', []),
-        ('Seats', 'seats', 'int(10,0,20)', []),
-        ('Min Group Size', 'minimum_group_size', 'int(10,0,20)', []),
-        ('Max Group Size', 'maximum_group_size', 'int(10,0,20)', []),
-        ('Sub Eligible', 'sub_eligible', 'bool', [])
+        ('Name', 'name', 'string(10,50)'),
+        ('Description', 'description', 'text(15,5,1000)'),
+        ('Opening Date', 'open_date', 'date'),
+        ('Closing Date', 'close_date', 'date'),
+        ('Days Allowed', 'days_allowed', 'int(10,0,20)'),
+        ('Seats', 'seats', 'int(10,0,20)'),
+        ('Min Group Size', 'minimum_group_size', 'int(10,0,20)'),
+        ('Max Group Size', 'maximum_group_size', 'int(10,0,20)'),
+        ('Sub Eligible', 'sub_eligible', 'bool'),
+        ('Unit', 'unit', 'unit_dropdown'),
+        ('Objective', 'objective', 'objective_dropdown')
     ]
 
     TREE_COLUMNS = [('ID', 'project_ID', 0),
@@ -42,13 +45,15 @@ class ProjectTab(BaseTab):
     CSV_HEADERS = ['name', 'description', 'open_date', 'close_date', 'days_allowed', 'seats',
                    'minimum_group_size', 'maximum_group_size', 'sub_eligible']
 
+
     def __init__(self, notebook):
         super().__init__(notebook)
         self._setup_variables()
         self._setup_ui()
+        self._setup_variables()
 
     def _setup_variables(self):
-        pass
+        self.units = Unit.get_all_order_by_sequence()
 
     # *************************************************************
 
@@ -150,7 +155,7 @@ class ProjectTab(BaseTab):
 
     def _create_project_from_dictionary(self, dictionary) -> Project:
         project = None
-        print(dictionary)
+        print(f' here is what we are getting from the creaate/edit form: {dictionary}')
         # try to get an existing project
 
         if 'project_ID' in dictionary:
@@ -169,6 +174,7 @@ class ProjectTab(BaseTab):
                 minimum_group_size=int(dictionary['minimum_group_size']),
                 maximum_group_size=int(dictionary['maximum_group_size']),
                 sub_eligible=dictionary['sub_eligible'] == 'True',
+                unit=dictionary['unit'],
                 ignore_validation=True
             )
             if 'project_ID' in dictionary:
@@ -187,6 +193,7 @@ class ProjectTab(BaseTab):
             project.minimum_group_size = int(dictionary['minimum_group_size'])
             project.maximum_group_size = int(dictionary['maximum_group_size'])
             project.sub_eligible = dictionary['sub_eligible'] == 'True'
+            project.unit = dictionary['unit']
 
         return project
 

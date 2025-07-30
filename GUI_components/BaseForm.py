@@ -4,6 +4,9 @@ from tkinter import colorchooser
 
 import ttkbootstrap as tb
 
+from Model import Unit, Objective
+
+
 class BaseForm(tb.Frame):
     # Class constants
     DATE_FORMAT = '%Y-%m-%d'
@@ -14,8 +17,8 @@ class BaseForm(tb.Frame):
         super().__init__(parent)
         self.validation_label = tb.Label(self, text="", bootstyle="danger")
         self.validation_label.grid(pady=5)
-        self.entry_dictionary = {} #this is a dictionary of the field name, (which SHOULD be the class variable name... if it's not then you dun messed up and this method cannot help you) and the entry widget
-        self.display_labels = display_labels # this is a list of tuples we use to parse out what to display, the rules are in the form builder method
+        self.entry_dictionary = {}  # this is a dictionary of the field name, (which SHOULD be the class variable name... if it's not then you dun messed up and this method cannot help you) and the entry widget
+        self.display_labels = display_labels  # this is a list of tuples we use to parse out what to display, the rules are in the form builder method
 
     def show_validation_error(self, message):
         self.validation_label.config(text=message)
@@ -76,6 +79,25 @@ class BaseForm(tb.Frame):
                 field_entry.config(validate='key',
                                    validatecommand=(self.register(lambda s: len(s) <= max_chars), '%P'))
 
+                # Add new handler for unit_dropdown type
+            elif entry_type == 'unit_dropdown':
+                units = Unit.get_all_order_by_sequence()
+                # Create list of tuples with (unit_ID, name) for the combobox
+                unit_choices = [(str(unit.unit_ID), unit.name) for unit in units] if not extra else extra[0]
+                # Create a Combobox with just the names
+                field_entry = tb.Combobox(self, values=[name for _, name in unit_choices])
+                # Store the unit_choices for later lookup
+                field_entry.unit_choices = unit_choices
+
+            elif entry_type == 'objective_dropdown':
+                objectives = Objective.get_all()
+                # Create list of tuples with (objective_ID, name) for the combobox
+                objective_choices = [(str(objective.objective_ID), objective.name) for objective in objectives] if not extra else extra[0]
+                # Create a Combobox with just the names
+                field_entry = tb.Combobox(self, values=[name for _, name in objective_choices])
+                # Store the objective_choices for later lookup
+                field_entry.objective_choices = objective_choices
+
             elif entry_type.startswith('text'):
                 width, height, max_chars = eval(entry_type.replace('text', ''))
                 field_entry = tb.Text(self, width=width, height=height)
@@ -86,7 +108,7 @@ class BaseForm(tb.Frame):
                 width, min_val, max_val = eval(entry_type.replace('int', ''))
                 field_entry = tb.Entry(self, textvariable=field, width=width)
 
-                #field_entry.config(validate='key', validatecommand=(self.register(
+                # field_entry.config(validate='key', validatecommand=(self.register(
                 #    lambda s: s.isdigit() and (not s or min_val <= int(s) <= max_val)), '%P'))
 
             elif entry_type.startswith('color'):
@@ -103,11 +125,9 @@ class BaseForm(tb.Frame):
                 options = extra[0] if extra else []
                 field_entry = tb.Combobox(self, values=options)
 
-
             elif entry_type.startswith('date'):
                 options = extra[0] if extra else []
                 field_entry = tb.DateEntry(self, self.DISPLAY_DATE_FORMAT)
-
 
             # if all else fails we just give it a standard non-validated entry field
             else:
@@ -118,6 +138,7 @@ class BaseForm(tb.Frame):
             # make it visible
             field_entry.grid(row=self.row_count, column=self.column_count, padx=10, pady=5)
             self.column_count += 1
+
 
     def validate_form(self):
         self.clear_validation_error()
@@ -153,8 +174,8 @@ class BaseForm(tb.Frame):
         self.clear_validation_error()
         return True
 
-    def populate_fields(self, field_values):
 
+    def populate_fields(self, field_values):
         for field in field_values:
             if field not in self.entry_dictionary:
                 pass
@@ -163,6 +184,11 @@ class BaseForm(tb.Frame):
                 if isinstance(widget, tb.DateEntry):
                     widget.entry.delete(0, 'end')
                     widget.entry.insert(0, field_values.get(field))
+                elif hasattr(widget, 'unit_choices'):
+                    # Handle unit dropdown population
+                    unit = field_values.get(field)
+                    if unit and hasattr(unit, 'name'):
+                        widget.set(unit.name)
                 elif isinstance(widget, tb.Text):
                     widget.delete("1.0", "end")
                     widget.insert("1.0", field_values.get(field))
@@ -173,11 +199,10 @@ class BaseForm(tb.Frame):
                     widget.delete(0, 'end')
                     widget.insert(0, field_values.get(field))
 
-    def get_all_entries(self):
 
+    def get_all_entries(self):
         self.value_list = {}
         for field_label, entry_widget in self.entry_dictionary.items():
-
 
             # Handle different widget types
             if isinstance(entry_widget, tb.DateEntry):
@@ -188,20 +213,37 @@ class BaseForm(tb.Frame):
                 self.value_list[field_label] = value
             elif hasattr(entry_widget, 'color'):  # Check if it's a color picker button
                 self.value_list[field_label] = entry_widget.color  # Get the color value directly from the button
-            else:
-                value = entry_widget.get()  # Regular Entry widgets
-                self.value_list[field_label] = value
+            elif hasattr(entry_widget, 'unit_choices'):
+                selected_name = entry_widget.get()
+                # Find the corresponding unit_ID for the selected name
+                unit_id = None
+                for id_str, name in entry_widget.unit_choices:
+                    if name == selected_name:
+                        unit_id = int(id_str)
+                        break
+                self.value_list[field_label] = Unit.get_by_id(unit_id) if unit_id else None
+
+            elif hasattr(entry_widget, 'objective_choices'):
+                selected_name = entry_widget.get()
+                # Find the corresponding objective_ID for the selected name
+                objective_id = None
+                for id_str, name in entry_widget.objective_choices:
+                    if name == selected_name:
+                        objective_id = int(id_str)
+                        break
+                self.value_list[field_label] = Objective.get_by_id(objective_id) if objective_id else None
+
+        else:
+            value = entry_widget.get()  # Regular Entry widgets
+            self.value_list[field_label] = value
 
         return self.value_list
 
+
     def validate_and_collect_form_values(self) -> dict or None:
-        #validates the form using the base class validator and return a dictionary of fields and values
+        # validates the form using the base class validator and return a dictionary of fields and values
         if self.validate_form():
             self.value_list = self.get_all_entries()
             return self.value_list
         else:
             return None
-
-
-
-

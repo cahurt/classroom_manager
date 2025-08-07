@@ -175,6 +175,7 @@ class ProjectTab(BaseTab):
                 maximum_group_size=int(dictionary['maximum_group_size']),
                 sub_eligible=dictionary['sub_eligible'] == 'True',
                 unit=dictionary['unit'],
+                objective=dictionary['objective'],
                 ignore_validation=True
             )
             if 'project_ID' in dictionary:

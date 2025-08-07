@@ -1,4 +1,3 @@
-# GUI_components/BaseForm.py
 from datetime import datetime
 from tkinter import colorchooser
 
@@ -41,6 +40,8 @@ class BaseForm(tb.Frame):
                 widget.color = "#000000"
             elif isinstance(widget, tb.Combobox):
                 widget.set('')
+            elif isinstance(widget, tb.Checkbutton):
+                widget.state(['!selected'])
             else:
                 widget.delete(0, 'end')
 
@@ -129,6 +130,9 @@ class BaseForm(tb.Frame):
                 options = extra[0] if extra else []
                 field_entry = tb.DateEntry(self, self.DISPLAY_DATE_FORMAT)
 
+            elif entry_type.startswith('bool'):
+                field_entry = tb.Checkbutton(self)
+
             # if all else fails we just give it a standard non-validated entry field
             else:
                 field_entry = tb.Entry(self, textvariable=field, width=50)
@@ -144,26 +148,30 @@ class BaseForm(tb.Frame):
         self.clear_validation_error()
 
         for label, field, entry_type, *extra in self.display_labels:
+            field_widget = self.entry_dictionary.get(field)
 
-            if isinstance(self.entry_dictionary.get(field), tb.DateEntry):
-                if not self.entry_dictionary.get(field).entry.get().strip():
+            if isinstance(field_widget, tb.DateEntry):
+                if not field_widget.entry.get().strip():
                     self.show_validation_error(f"Field {label} is required")
                     return False
                 try:
-                    datetime.strptime(self.entry_dictionary.get(field).entry.get(), '%m/%d/%Y')
+                    datetime.strptime(field_widget.entry.get(), '%m/%d/%Y')
                 except ValueError:
                     self.show_validation_error(f"Field {label} must be in the format MM/DD/YYYY")
                     return False
                 else:
                     self.clear_validation_error()
-            elif isinstance(self.entry_dictionary.get(field), tb.Text):
-                if not self.entry_dictionary.get(field).get("1.0", "end-1c").strip():
+            elif isinstance(field_widget, tb.Text):
+                if not field_widget.get("1.0", "end-1c").strip():
                     self.show_validation_error(f"Field {label} is required")
                     return False
-            elif isinstance(self.entry_dictionary.get(field), tb.Button):
+            elif isinstance(field_widget, tb.Button):
+                pass
+            elif isinstance(field_widget, tb.Checkbutton):
+                # Checkbuttons don't need validation - they always have a valid state
                 pass
             else:
-                value = self.entry_dictionary.get(field).get().strip()
+                value = field_widget.get().strip()
                 if not value:
                     self.show_validation_error(f"Field {label} is required")
                     return False
@@ -178,31 +186,48 @@ class BaseForm(tb.Frame):
     def populate_fields(self, field_values):
         for field in field_values:
             if field not in self.entry_dictionary:
-                pass
-            else:
-                widget = self.entry_dictionary[field]
-                if isinstance(widget, tb.DateEntry):
-                    widget.entry.delete(0, 'end')
-                    widget.entry.insert(0, field_values.get(field))
-                elif hasattr(widget, 'unit_choices'):
-                    # Handle unit dropdown population
-                    unit = field_values.get(field)
-                    if unit and hasattr(unit, 'name'):
-                        widget.set(unit.name)
-                elif isinstance(widget, tb.Text):
-                    widget.delete("1.0", "end")
-                    widget.insert("1.0", field_values.get(field))
-                elif isinstance(widget, tb.Button):
-                    widget.color = self.DEFAULT_COLOR
-                    pass
+                continue
+        
+            widget = self.entry_dictionary[field]
+            value = field_values.get(field)
+        
+            if isinstance(widget, tb.DateEntry):
+                widget.entry.delete(0, 'end')
+                widget.entry.insert(0, value)
+            elif isinstance(widget, tb.Text):
+                widget.delete("1.0", "end")
+                widget.insert("1.0", value)
+            elif isinstance(widget, tb.Button):
+                widget.color = self.DEFAULT_COLOR
+            elif isinstance(widget, tb.Checkbutton):
+                if value:
+                    widget.state(['selected'])
                 else:
-                    widget.delete(0, 'end')
-                    widget.insert(0, field_values.get(field))
+                    widget.state(['!selected'])
+            elif hasattr(widget, 'unit_choices'):
+                # Handle unit dropdown population
+                if hasattr(value, 'name'):
+                    widget.set(value.name)
+            elif hasattr(widget, 'objective_choices'):
+                # Handle objective dropdown population
+                if hasattr(value, 'name'):
+                    widget.set(value.name)
+            elif isinstance(widget, tb.Entry):
+                widget.delete(0, 'end')
+                # Convert value to string for Entry widgets
+                if value is not None:
+                    widget.insert(0, str(value))
+            else:
+                # Generic fallback for other widget types
+                widget.delete(0, 'end')
+                if value is not None:
+                    widget.insert(0, str(value))
 
 
     def get_all_entries(self):
         self.value_list = {}
         for field_label, entry_widget in self.entry_dictionary.items():
+            #print('field_label: ', field_label, ' ', entry_widget.get())
 
             # Handle different widget types
             if isinstance(entry_widget, tb.DateEntry):
@@ -233,9 +258,13 @@ class BaseForm(tb.Frame):
                         break
                 self.value_list[field_label] = Objective.get_by_id(objective_id) if objective_id else None
 
-        else:
-            value = entry_widget.get()  # Regular Entry widgets
-            self.value_list[field_label] = value
+            elif isinstance(entry_widget, tb.Checkbutton):
+                value = bool(entry_widget.instate(['selected']))
+                self.value_list[field_label] = value
+
+            else:
+                value = entry_widget.get()  # Regular Entry widgets
+                self.value_list[field_label] = value
 
         return self.value_list
 

@@ -1,264 +1,266 @@
-# Python
+import datetime
 import tkinter as tk
+from tkinter import ttk
 
 import ttkbootstrap as tb
-import Persistance
-from GUI_components.HourTab import HourTab
-from GUI_components.ClassroomLocationsTab import ClassroomLocationsTab
-from GUI_components.ObjectiveTab import ObjectiveTab
-from GUI_components.UnitTab import UnitTab
-from Model.AddDefaultObjects import AddDefaultObjects
-from GUI_components.ProjectTab import ProjectTab
-from Model.Hour import Hour
-from sqlalchemy.orm import Session
-import datetime
-import time
+from sqlalchemy.orm import sessionmaker
 
-USE_TEST_TIME = True  # Set to False to use real time
-TEST_TIME = datetime.datetime.now().replace(hour=9, minute=35, second=45, microsecond=0)
+import Persistance
+from Model.Hour import Hour as HourModel
+
+
+class DayOptionsDialog(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Today's Options")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+
+        self.assembly_var = tk.BooleanVar(value=False)
+        self.sub_var = tk.BooleanVar(value=False)
+        self.result = None
+
+        # UI
+        frame = ttk.Frame(self, padding=16)
+        frame.pack(fill="both", expand=True)
+
+        ttk.Label(frame, text="Select options for today:").pack(anchor="w", pady=(0, 8))
+        ttk.Checkbutton(frame, text="Assembly day", variable=self.assembly_var).pack(anchor="w")
+        ttk.Checkbutton(frame, text="Sub day", variable=self.sub_var).pack(anchor="w", pady=(4, 0))
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill="x", pady=(12, 0))
+        ttk.Button(btn_frame, text="OK", command=self._on_ok).pack(side="right", padx=(8, 0))
+        ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side="right")
+
+        self._center_over(parent)
+
+    def _center_over(self, parent):
+        self.update_idletasks()
+        pw = parent.winfo_width()
+        ph = parent.winfo_height()
+        px = parent.winfo_rootx()
+        py = parent.winfo_rooty()
+        w = self.winfo_width()
+        h = self.winfo_height()
+        x = px + (pw - w) // 2
+        y = py + (ph - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _on_ok(self):
+        self.result = (self.assembly_var.get(), self.sub_var.get())
+        self.destroy()
+
+    def _on_cancel(self):
+        # Defaults if canceled
+        self.result = (False, False)
+        self.destroy()
 
 
 class HourManager:
-    def __init__(self, ...):
-        self.is_assembly_day = False
-        self.has_substitute = False
+    def __init__(self):
+        # DB setup
         Persistance.Base.metadata.create_all(Persistance.engine)
+        self.SessionLocal = sessionmaker(bind=Persistance.engine)
+
+        # UI setup
         self.root = tb.Window(themename="superhero")
-        self.show_settings_dialog()
         self.setup_window()
 
-        # Anchor test time to real time so it advances when testing
-        self._use_test_time = USE_TEST_TIME
-        if self._use_test_time:
-            self._test_anchor_real = datetime.datetime.now()
-            self._test_anchor_mock = TEST_TIME
+        # Ask for today's options before building rest of UI
+        self.assembly_day, self.sub_day = self._prompt_day_options()
 
-        self.timer_label = None
-        self.current_hour_label = None
-        self.next_hour_label = None
+        # Main UI: status + big timer
+        self.status_label = tb.Label(
+            self.root,
+            text="",
+            font=("Helvetica", 16),
+            bootstyle="secondary"
+        )
+        self.status_label.pack(pady=(20, 4))
 
-        # Flashing state
-        self.is_visible = True
-        self.FLASH_INTERVAL = 300  # milliseconds
-        self.NORMAL_COLOR = "white"
-        self.WARNING_COLOR = "red"
+        self.timer_label = tb.Label(
+            self.root,
+            text="--:--",
+            font=("Helvetica", 72, "bold"),
+            bootstyle="inverse-primary"
+        )
+        self.timer_label.pack(pady=10)
 
-        # Flash control state
-        self._flash_job_id = None          # after() handle so we can cancel
-        self._flashes_left = 0             # remaining toggles
-        self._flash_active = False         # currently flashing?
-        self._flash_latch_hour = None      # prevents re-triggering within the same hour
+        # Load hours once; they rarely change during a session
+        self.hours = self._load_hours()
 
-        self.setup_timer()
+        # Start updates
+        self.update_timer()
 
     def setup_window(self):
         self.root.title("Foundations of Manufacturing 2025-2026")
-        self.root.geometry('1280x1024')
+        self.root.geometry("600x300")
 
-    def show_settings_dialog(self):
-        dialog = tb.Toplevel(self.root)
-        dialog.title("Daily Settings")
-        dialog.geometry("300x150")
-
-        assembly_var = tk.BooleanVar(master=self.root)
-        substitute_var = tk.BooleanVar(master=self.root)
-
-        tb.Checkbutton(dialog, text="Assembly Day", variable=assembly_var).pack(pady=10)
-        tb.Checkbutton(dialog, text="Substitute Teacher", variable=substitute_var).pack(pady=10)
-
-        def save_settings():
-            self.is_assembly_day = assembly_var.get()
-            self.has_substitute = substitute_var.get()
-            dialog.destroy()
-
-        tb.Button(dialog, text="OK", command=save_settings).pack(pady=20)
-
-        dialog.transient(self.root)
-        dialog.grab_set()
+    def _prompt_day_options(self):
+        # Build a tiny invisible center reference to position dialog nicely
+        self.root.update_idletasks()
+        dialog = DayOptionsDialog(self.root)
         self.root.wait_window(dialog)
+        assembly_day, sub_day = dialog.result
+        # Optional: reflect options in title for clarity
+        title_suffix = []
+        if assembly_day:
+            title_suffix.append("Assembly")
+        if sub_day:
+            title_suffix.append("Sub")
+        if title_suffix:
+            self.root.title(f"{self.root.title()} - {' & '.join(title_suffix)} Day")
+        return assembly_day, sub_day
 
-    def setup_timer(self):
-        self.current_hour_label = tb.Label(self.root, text="", font=("Helvetica", 24))
-        self.current_hour_label.pack(pady=10)
+    def _load_hours(self):
+        session = self.SessionLocal()
+        try:
+            hours = session.query(HourModel).all()
+            return hours
+        finally:
+            session.close()
 
-        self.next_hour_label = tb.Label(self.root, text="", font=("Helvetica", 20))
-        self.next_hour_label.pack(pady=5)
-
-        self.timer_label = tb.Label(self.root, text="", font=("Helvetica", 24))
-        self.timer_label.pack(pady=10)
-
-        self.update_timer()
-
-    def _now(self) -> datetime.datetime:
-        """Return current time (mocked when test mode is on)."""
-        if self._use_test_time:
-            elapsed = datetime.datetime.now() - self._test_anchor_real
-            return self._test_anchor_mock + elapsed
-        return datetime.datetime.now()
-
-    # --- Flash control helpers -------------------------------------------------
-    def start_flash(self, times: int = 10) -> None:
-        """Start a bounded flash sequence (exactly `times` on/off toggles)."""
-        # Cancel any previous scheduled toggle
-        if self._flash_job_id is not None:
+    def _to_time(self, value):
+        # Accept datetime.time or string like "8:55", "1:17", "1:17 PM"
+        if isinstance(value, datetime.time):
+            return value
+        if isinstance(value, str):
+            s = value.strip().lower()
+            # Try with explicit AM/PM
             try:
-                self.root.after_cancel(self._flash_job_id)
+                if "am" in s or "pm" in s:
+                    return datetime.datetime.strptime(s.replace(".", ""), "%I:%M %p").time()
             except Exception:
                 pass
-            self._flash_job_id = None
-
-        # Each toggle flips color; times is the number of flips (on/off pairs are 2 toggles)
-        self._flashes_left = max(0, times)
-        self._flash_active = self._flashes_left > 0
-
-        # Ensure we start from NORMAL_COLOR so the first toggle is WARNING
-        try:
-            self.timer_label.config(fg=self.NORMAL_COLOR)
-        except Exception:
-            pass
-
-        if self._flash_active:
-            self._schedule_next_flash_toggle()
-
-    def _schedule_next_flash_toggle(self) -> None:
-        if self._flashes_left <= 0:
-            self._stop_flash()
-            return
-
-        # Toggle color
-        try:
-            current = self.timer_label.cget("fg")
-            next_color = self.WARNING_COLOR if current == self.NORMAL_COLOR else self.NORMAL_COLOR
-            self.timer_label.config(fg=next_color)
-        except Exception:
-            # Fail-safe: stop flashing if widget is unavailable
-            self._stop_flash()
-            return
-
-        self._flashes_left -= 1
-
-        # Schedule next toggle
-        try:
-            self._flash_job_id = self.root.after(self.FLASH_INTERVAL, self._schedule_next_flash_toggle)
-        except Exception:
-            self._stop_flash()
-
-    def _stop_flash(self) -> None:
-        """Stop flashing and restore normal color."""
-        if self._flash_job_id is not None:
+            # Try 24-hour format
             try:
-                self.root.after_cancel(self._flash_job_id)
+                return datetime.datetime.strptime(s, "%H:%M").time()
             except Exception:
                 pass
-            self._flash_job_id = None
+            # Heuristic: school afternoon hours 1..6 => PM
+            try:
+                parts = s.split(":")
+                h = int(parts[0])
+                m = int(parts[1])
+                if 1 <= h <= 6:
+                    h += 12
+                return datetime.time(hour=h, minute=m)
+            except Exception:
+                return None
+        return None
 
-        try:
-            self.timer_label.config(fg=self.NORMAL_COLOR)
-        except Exception:
-            pass
+    def _to_date(self, value):
+        # Normalize to a pure date for consistent comparisons
+        if isinstance(value, datetime.datetime):
+            return value.date()
+        if isinstance(value, datetime.date):
+            return value
+        if isinstance(value, str):
+            for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%Y/%m/%d"):
+                try:
+                    return datetime.datetime.strptime(value.strip(), fmt).date()
+                except Exception:
+                    continue
+        return None
 
-        self._flashes_left = 0
-        self._flash_active = False
+    def _today_intervals(self, today):
+        # Build list of (start_dt, end_dt, hour_name) for today based on options.
+        intervals = []
+        use_assembly = self.assembly_day
 
-    # --- Existing timer update -------------------------------------------------
+        for h in self.hours:
+            # Date gating
+            start_date = self._to_date(getattr(h, "start_date", None))
+            end_date = self._to_date(getattr(h, "end_date", None))
+            if start_date and today < start_date:
+                continue
+            if end_date and today > end_date:
+                continue
+
+            # Times
+            if use_assembly:
+                st = self._to_time(getattr(h, "assembly_start_time", None)) or self._to_time(getattr(h, "start_time", None))
+                et = self._to_time(getattr(h, "assembly_end_time", None)) or self._to_time(getattr(h, "end_time", None))
+            else:
+                st = self._to_time(getattr(h, "start_time", None))
+                et = self._to_time(getattr(h, "end_time", None))
+
+            if not st or not et:
+                continue
+
+            start_dt = datetime.datetime.combine(today, st)
+            end_dt = datetime.datetime.combine(today, et)
+            if end_dt <= start_dt:
+                # Guard against invalid or overnight ranges; skip invalid entries
+                continue
+
+            hour_name = getattr(h, "name", "Hour")
+            intervals.append((start_dt, end_dt, hour_name))
+
+        intervals.sort(key=lambda t: t[0])
+        return intervals
+
     def update_timer(self):
-        now = self._now()
+        now = datetime.datetime.now()
+        today = now.date()
+        intervals = self._today_intervals(today)
 
-        # Default update interval (ms). May be reduced when flashing.
-        next_interval_ms = 1000
+        label_text = ""
+        remaining = None
 
-        with Session(Persistance.engine) as session:
-            # Pick the correct columns based on assembly day
-            start_col = Hour._assembly_start_time if self.is_assembly_day else Hour._start_time
-            end_col = Hour._assembly_end_time if self.is_assembly_day else Hour._end_time
-
-            # Current hour (if any)
-            current_hour = (
-                session.query(Hour)
-                .filter(start_col <= now.time(), end_col > now.time())
-                .order_by(start_col)
-                .first()
-            )
-
-            # Next hour (wrap to first if none later today)
-            next_hour = (
-                session.query(Hour)
-                .filter(start_col > now.time())
-                .order_by(start_col)
-                .first()
-            )
-            if not next_hour:
-                next_hour = session.query(Hour).order_by(start_col).first()
-
-            # If no hours are configured at all
-            if not current_hour and not next_hour:
-                self.current_hour_label.config(text="Current Hour: --")
-                self.next_hour_label.config(text="Next Hour: --")
-                self.timer_label.config(text="Time remaining: --:--:--")
-                self.timer_label.config(foreground=self.NORMAL_COLOR)
-                self.root.after(next_interval_ms, self.update_timer)
-                return
-
-            # Update Current Hour label and compute the target time for the countdown
-            if current_hour:
-                self.current_hour_label.config(text=f"Current Hour: {current_hour.name}")
-                end_time = current_hour.assembly_end_time if self.is_assembly_day else current_hour.end_time
-                next_time = datetime.datetime.combine(now.date(), end_time)
+        # Determine if we are in an active hour
+        current = next(((s, e, n) for (s, e, n) in intervals if s <= now <= e), None)
+        if current:
+            s, e, name = current
+            remaining = e - now
+            label_text = f"In {name} — time remaining"
+        else:
+            # Next upcoming hour today
+            upcoming = next(((s, e, n) for (s, e, n) in intervals if s > now), None)
+            if upcoming:
+                s, e, name = upcoming
+                remaining = s - now
+                label_text = f"Until {name} starts"
             else:
-                self.current_hour_label.config(text="Current Hour: --")
-                # No active hour; countdown to the next hour's start
-                start_time = next_hour.assembly_start_time if self.is_assembly_day else next_hour.start_time
-                next_time = datetime.datetime.combine(now.date(), start_time)
-                # If we wrapped to the first hour but its start_time is earlier than now,
-                # the event is tomorrow.
-                if start_time <= now.time():
-                    next_time += datetime.timedelta(days=1)
+                # No more hours today; find the first hour tomorrow (if within date range)
+                tomorrow = today + datetime.timedelta(days=1)
+                tomorrow_intervals = self._today_intervals(tomorrow)
+                if tomorrow_intervals:
+                    s, e, name = tomorrow_intervals[0]
+                    remaining = s - now
+                    label_text = f"No more today — until {name} starts"
+                else:
+                    # Nothing scheduled
+                    self.status_label.config(text="No scheduled hours in range.")
+                    self.timer_label.config(text="--:--")
+                    self.root.after(1000, self.update_timer)
+                    return
 
-            # Update Next Hour label (if any)
-            if next_hour:
-                self.next_hour_label.config(text=f"Next Hour: {next_hour.name}")
-            else:
-                self.next_hour_label.config(text="Next Hour: --")
+        # Format remaining as MM:SS or H:MM:SS if long
+        total_seconds = max(0, int(remaining.total_seconds()))
+        hours, rem = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(rem, 60)
 
-        # Update countdown
-        time_diff = next_time - now
-        total_seconds = max(0, int(time_diff.total_seconds()))
-        hours, remainder = divmod(total_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
+        if hours > 0:
+            time_str = f"{hours:d}:{minutes:02d}:{seconds:02d}"
+        else:
+            time_str = f"{minutes:02d}:{seconds:02d}"
 
-        self.timer_label.config(text=f"Time remaining: {hours:02d}:{minutes:02d}:{seconds:02d}")
+        # Reflect options in status
+        badges = []
+        if self.assembly_day:
+            badges.append("Assembly")
+        if self.sub_day:
+            badges.append("Sub")
+        badge_str = f" [{' & '.join(badges)}]" if badges else ""
 
-        # Latch key to ensure we trigger flashing at most once per hour
-        hour_key = (now.year, now.month, now.day, now.hour)
+        self.status_label.config(text=f"{label_text}{badge_str}")
+        self.timer_label.config(text=time_str)
 
-        # Choose your trigger condition. Example:
-        # Start flashing in the last 10 seconds of the hour, once per hour.
-        seconds_into_hour = now.minute * 60 + now.second
-        seconds_left_in_hour = 3600 - seconds_into_hour
-        should_start_flash = seconds_left_in_hour <= 10
-
-        if should_start_flash and self._flash_latch_hour != hour_key and not self._flash_active:
-            self._flash_latch_hour = hour_key
-            # Exactly 10 toggles
-            self.start_flash(times=10)
-
-        # If you have another trigger condition elsewhere, ensure it uses:
-        #   if not self._flash_active and self._flash_latch_hour != hour_key:
-        #       self._flash_latch_hour = hour_key
-        #       self.start_flash(times=10)
-
-        # Flash during the last 5 minutes of an active hour
-        # if current_hour and hours == 0 and minutes < 5:
-        #     # Toggle color to create a flash effect and speed up the update tempo.
-        #     self.timer_label.config(foreground=self.WARNING_COLOR if self.is_visible else self.NORMAL_COLOR)
-        #     self.is_visible = not self.is_visible
-        #     next_interval_ms = min(next_interval_ms, self.FLASH_INTERVAL)
-        # else:
-        #     # Reset to normal display outside flashing window
-        #     self.timer_label.config(foreground=self.NORMAL_COLOR)
-        #     self.is_visible = True
-
-        self.root.after(next_interval_ms, self.update_timer)
+        # Schedule next tick
+        self.root.after(1000, self.update_timer)
 
     def run(self):
         self.root.mainloop()

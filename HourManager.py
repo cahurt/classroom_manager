@@ -11,6 +11,7 @@ from Model.Hour import Hour as HourModel
 # Test time configuration
 USE_TEST_TIME = True
 TEST_TIME = datetime.datetime(2025, 8, 22, 9, 40)  # 10:30 AM on August 22, 2025
+TEST_TIME_ELAPSED = 0  # Track elapsed seconds in test mode
 
 
 class DayOptionsDialog(tk.Toplevel):
@@ -207,7 +208,12 @@ class HourManager:
         return intervals
 
     def update_timer(self):
-        now = TEST_TIME if USE_TEST_TIME else datetime.datetime.now()
+        if USE_TEST_TIME:
+            global TEST_TIME_ELAPSED
+            now = TEST_TIME + datetime.timedelta(seconds=TEST_TIME_ELAPSED)
+            TEST_TIME_ELAPSED += 1
+        else:
+            now = datetime.datetime.now()
         today = now.date()
         intervals = self._today_intervals(today)
 
@@ -261,7 +267,12 @@ class HourManager:
         badge_str = f" [{' & '.join(badges)}]" if badges else ""
 
         self.status_label.config(text=f"{label_text}{badge_str}")
-        self.timer_label.config(text=time_str)
+
+        # Change color to red if 5 minutes or less remaining during an hour
+        if current and total_seconds <= 300:  # 5 minutes = 300 seconds
+            self.timer_label.config(text=time_str, bootstyle="danger")
+        else:
+            self.timer_label.config(text=time_str, bootstyle="inverse-primary")
 
         # Schedule next tick
         self.root.after(1000, self.update_timer)

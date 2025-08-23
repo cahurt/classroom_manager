@@ -1,6 +1,7 @@
 # ProjectManager.py
 import ttkbootstrap as tb
 import Persistance
+from GUI_components.HourTab import HourTab
 from GUI_components.ClassroomLocationsTab import ClassroomLocationsTab
 from GUI_components.ObjectiveTab import ObjectiveTab
 from GUI_components.UnitTab import UnitTab
@@ -29,7 +30,8 @@ class ProjectManager:
             "Units": UnitTab,
             "Classroom Locations": ClassroomLocationsTab,
             "Objectives": ObjectiveTab,
-            "Projects": ProjectTab
+            "Projects": ProjectTab,
+            "Hours": HourTab
         }
 
         for label, tab_class in tabs.items():

@@ -10,6 +10,7 @@ class BaseForm(tb.Frame):
     # Class constants
     DATE_FORMAT = '%Y-%m-%d'
     DISPLAY_DATE_FORMAT = '%m/%d/%Y'
+    TIME_FORMAT = '%H:%M'
     DEFAULT_COLOR = "#000000"
 
     def __init__(self, parent, display_labels):
@@ -130,6 +131,12 @@ class BaseForm(tb.Frame):
                 options = extra[0] if extra else []
                 field_entry = tb.DateEntry(self, self.DISPLAY_DATE_FORMAT)
 
+            elif entry_type.startswith('time'):
+                field_entry = tb.Entry(self, width=10)
+                #field_entry.config(validate='key',
+                                   #validatecommand=(self.register(lambda s: not s or self._validate_time_format(s)),
+                                    #                '%P'))
+
             elif entry_type.startswith('bool'):
                 field_entry = tb.Checkbutton(self)
 
@@ -143,6 +150,13 @@ class BaseForm(tb.Frame):
             field_entry.grid(row=self.row_count, column=self.column_count, padx=10, pady=5)
             self.column_count += 1
 
+    def _validate_time_format(self, time_str):
+        try:
+            if time_str:
+                datetime.strptime(time_str, self.TIME_FORMAT)
+            return True
+        except ValueError:
+            return False
 
     def validate_form(self):
         self.clear_validation_error()
@@ -161,6 +175,16 @@ class BaseForm(tb.Frame):
                     return False
                 else:
                     self.clear_validation_error()
+            elif entry_type.startswith('time'):
+                value = field_widget.get().strip()
+                if not value:
+                    self.show_validation_error(f"Field {label} is required")
+                    return False
+                try:
+                    datetime.strptime(value, self.TIME_FORMAT)
+                except ValueError:
+                    self.show_validation_error(f"Field {label} must be in the format HH:MM")
+                    return False
             elif isinstance(field_widget, tb.Text):
                 if not field_widget.get("1.0", "end-1c").strip():
                     self.show_validation_error(f"Field {label} is required")
@@ -207,11 +231,11 @@ class BaseForm(tb.Frame):
             elif hasattr(widget, 'unit_choices'):
                 # Handle unit dropdown population
                 if hasattr(value, 'name'):
-                    widget.set(value.name)
+                    widget.set(value._name)
             elif hasattr(widget, 'objective_choices'):
                 # Handle objective dropdown population
                 if hasattr(value, 'name'):
-                    widget.set(value.name)
+                    widget.set(value._name)
             elif isinstance(widget, tb.Entry):
                 widget.delete(0, 'end')
                 # Convert value to string for Entry widgets
@@ -233,6 +257,12 @@ class BaseForm(tb.Frame):
             if isinstance(entry_widget, tb.DateEntry):
                 value = entry_widget.entry.get()  # Use .entry.get() for DateEntry
                 self.value_list[field_label] = datetime.strptime(value, '%m/%d/%Y')
+            elif hasattr(entry_widget, 'time'):
+                value = entry_widget.get().strip()
+                if value:
+                    self.value_list[field_label] = datetime.strptime(value, self.TIME_FORMAT).time()
+                else:
+                    self.value_list[field_label] = None
             elif isinstance(entry_widget, tb.Text):
                 value = entry_widget.get("1.0", "end-1c")  # Special handling for Text widgets
                 self.value_list[field_label] = value

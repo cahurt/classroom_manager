@@ -19,7 +19,7 @@ class TestUnitCreateFromDict(unittest.TestCase):
         }
         unit = Unit.create_from_dict(data)
 
-        self.assertEqual('Sample Unit', unit.name)
+        self.assertEqual('Sample Unit', unit._name)
         self.assertEqual(1, unit.sequence)
         self.assertEqual(datetime(2025, 1, 1), unit.opening_date)
         self.assertEqual(datetime(2025, 1, 15), unit.closing_date)
@@ -38,7 +38,7 @@ class TestUnitCreateFromDict(unittest.TestCase):
         }
         unit = Unit.create_from_dict(data)
 
-        self.assertEqual('Unit Without Dates', unit.name)
+        self.assertEqual('Unit Without Dates', unit._name)
         self.assertEqual(2, unit.sequence)
         self.assertEqual('', unit.description)
         self.assertIsInstance(unit.opening_date, datetime)

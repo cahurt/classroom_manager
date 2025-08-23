@@ -8,6 +8,10 @@ from sqlalchemy.orm import sessionmaker
 import Persistance
 from Model.Hour import Hour as HourModel
 
+# Test time configuration
+USE_TEST_TIME = True
+TEST_TIME = datetime.datetime(2025, 8, 22, 9, 40)  # 10:30 AM on August 22, 2025
+
 
 class DayOptionsDialog(tk.Toplevel):
     def __init__(self, parent):
@@ -203,7 +207,7 @@ class HourManager:
         return intervals
 
     def update_timer(self):
-        now = datetime.datetime.now()
+        now = TEST_TIME if USE_TEST_TIME else datetime.datetime.now()
         today = now.date()
         intervals = self._today_intervals(today)
 

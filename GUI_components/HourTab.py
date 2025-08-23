@@ -2,6 +2,8 @@ import csv
 from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from datetime import datetime
+import os
+import tkinter as tk
 
 import Persistance
 from Model import Hour
@@ -39,7 +41,7 @@ class HourTab(BaseTab):
                     ('End Date', 'end_date', 50)
                     ]
 
-    CSV_HEADERS = ['name', 'description', 'hours_required']
+    CSV_HEADERS = ['name', 'start_time', 'end_time', 'start_date', 'end_date','assembly_start_time','assembly_end_time']
 
     def __init__(self, notebook):
         super().__init__(notebook)
@@ -132,7 +134,7 @@ class HourTab(BaseTab):
 
     def upload_hour_csv(self):
         # """Handle Hour CSV file upload - done in base tab"""
-        self.upload_csv(self.CSV_HEADERS, "Classroom Locations imported successfully")
+        self.upload_csv(self.CSV_HEADERS, "Hours imported successfully")
         self._reload_hours_tree()
 
     # ************************************************************
@@ -150,7 +152,7 @@ class HourTab(BaseTab):
     def _create_hour_from_dictionary(self, dictionary) -> Hour:
         hour = None
         # try to get an existing hour
-
+        print(dictionary)
         if 'hour_ID' in dictionary:
 
             hour = Hour.get_by_id(dictionary['hour_ID'])
@@ -162,7 +164,10 @@ class HourTab(BaseTab):
                 start_time = dictionary['start_time'],
                 end_time = dictionary['end_time'],
                 start_date = dictionary['start_date'],
-                end_date = dictionary['end_date']
+                end_date = dictionary['end_date'],
+                assembly_start_time = dictionary['assembly_start_time'],
+                assembly_end_time = dictionary['assembly_end_time']
+
             )
             if 'hour_ID' in dictionary:
                 hour.hour_ID = dictionary['hour_ID']
@@ -175,6 +180,10 @@ class HourTab(BaseTab):
             hour.end_time = dictionary['end_time']
             hour.start_date = dictionary['start_date']
             hour.end_date = dictionary['end_date']
+            hour.assembly_start_time = dictionary['assembly_start_time']
+            hour.assembly_end_time = dictionary['assembly_end_time']
+            if 'hour_ID' in dictionary:
+                hour.hour_ID = dictionary['hour_ID']
 
         return hour
 
@@ -251,3 +260,56 @@ class HourTab(BaseTab):
                 return None
         except Exception as e:
             self.show_error(f"Failed to select hour: {str(e)}")
+
+
+def save_csv_template(headers, default_filename="hours_template.csv", parent=None):
+    # parent: pass the toplevel/window that initiated the action if you have it
+    # This helps the dialog stay on top and avoids focus issues.
+    had_grab = False
+    grab_owner = None
+
+    try:
+        # Try to get a sensible parent and release any active grab
+        if parent is None:
+            parent = tk._default_root  # uses the main Tk root if available
+
+        if parent is not None:
+            try:
+                grab_owner = parent.grab_current()
+                if grab_owner is not None:
+                    had_grab = True
+                    grab_owner.grab_release()
+            except Exception:
+                pass
+
+        initialdir = os.path.expanduser("~")
+        file_path = filedialog.asksaveasfilename(
+            parent=parent,
+            title="Save CSV Template",
+            defaultextension=".csv",
+            initialfile=default_filename,
+            initialdir=initialdir,
+            filetypes=[("CSV Files", "*.csv")]
+        )
+
+        if not file_path:
+            return  # user cancelled
+
+        # Write just the headers for a template
+        try:
+            with open(file_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(headers)
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Failed to save CSV template:\n{e}", parent=parent)
+            return
+
+        messagebox.showinfo("Success", f"CSV template saved to:\n{file_path}", parent=parent)
+
+    finally:
+        # Restore the grab if there was one
+        try:
+            if had_grab and grab_owner is not None:
+                grab_owner.grab_set()
+        except Exception:
+            pass

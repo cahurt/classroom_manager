@@ -94,7 +94,10 @@ class BaseTab(tb.Frame):
             self._process_csv_file(file_path, header_row)
             self.show_success(success_message)
         except Exception as e:
-            self.show_error(f"Failed to read CSV file: {str(e)}")
+            error_msg = str(e)
+            if hasattr(e, 'row_data'):
+                error_msg += f"\nProblematic row data: {e.row_data}"
+            self.show_error(f"Failed to read CSV file: {error_msg}")
 
     def _process_csv_file(self, file_path, header_row):
         #"""Generic CSV file processor"""
@@ -126,12 +129,18 @@ class BaseTab(tb.Frame):
     def _generate_dictionary_from_csv_row(self, csv_row, header_row):
         #"""Generate dictionary from CSV row using header row as keys"""
         if len(csv_row) != len(header_row):
-            raise ValueError(f"CSV row length ({len(csv_row)}) does not match header length ({len(header_row)})")
+            e = ValueError(
+                f"CSV row length ({len(csv_row)}) does not match header length ({len(header_row)}). Headers: {header_row}, Row data: {csv_row}")
+            e.row_data = csv_row
+            raise e
 
         try:
             return {header: value for header, value in zip(header_row, csv_row)}
         except Exception as e:
-            raise ValueError(f"Error creating dictionary from CSV row: {str(e)}")
+            e = ValueError(
+                f"Error creating dictionary from CSV row. Headers: {header_row}, Row data: {csv_row}. Error: {str(e)}")
+            e.row_data = csv_row
+            raise e
 
     def _process_row(self, row):
         #"""Abstract method to be implemented by child classes"""

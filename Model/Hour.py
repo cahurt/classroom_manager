@@ -34,14 +34,14 @@ class Hour(Base):
                  start_date: datetime, end_date: datetime,
                  assembly_start_time: time = None, assembly_end_time: time = None):
         """Initialize a new Hour instance with validation."""
-        if not name or len(name) > self.MAX_NAME_LENGTH:
+        """if not name or len(name) > self.MAX_NAME_LENGTH:
             raise ValueError(f"Name must be between 1 and {self.MAX_NAME_LENGTH} characters")
         if end_time <= start_time:
             raise ValueError("End time must be after start time")
         if end_date <= start_date:
-            raise ValueError("End date must be after start date")
+            raise ValueError(f"End date ({end_date}) must be after start date ({start_date})")
         if assembly_start_time and assembly_end_time and assembly_end_time <= assembly_start_time:
-            raise ValueError("Assembly end time must be after assembly start time")
+            raise ValueError("Assembly end time must be after assembly start time")"""
 
         self._name = name
         self._start_time = start_time
@@ -109,7 +109,7 @@ class Hour(Base):
     def end_date(self, value: datetime) -> None:
         """Set the end date."""
         if value <= self._start_date:
-            raise ValueError("End date must be after start date")
+            raise ValueError(f"End date ({value}) must be after start date ({self._start_date})")
         self._end_date = value
 
     @property

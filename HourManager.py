@@ -19,6 +19,32 @@ except Exception as exc:
 import tkinter as tk
 from tkinter import messagebox
 
+# --- Add near the top of the file (after imports) ---
+class Phases:
+    MORNING_BRIEFING = "daily_briefing"
+    IN_HOUR = "in_hour"
+    BETWEEN_HOURS = "between_hours"
+    CLEANUP = "cleanup"
+
+ALL_PHASES = (
+    Phases.MORNING_BRIEFING,
+    Phases.IN_HOUR,
+    Phases.BETWEEN_HOURS,
+    Phases.CLEANUP,
+)
+
+
+def _normalize_phase_cleanup(state):
+    """
+    Ensure cleanup is represented as a proper phase while preserving
+    the existing cleanup_active boolean for backward compatibility.
+    """
+    if getattr(state, "cleanup_active", False):
+        state.phase = Phases.CLEANUP
+        if not getattr(state, "label", None):
+            state.label = "Cleanup"
+    return state
+
 
 # Add this near the top-level of HourManager.py (before HourManagerApp)
 def format_countdown_for_display(
@@ -27,7 +53,7 @@ def format_countdown_for_display(
     phase_name: Optional[str] = None,
     ) -> str:
     """
-    Format a countdown value. Strictly shows seconds only during Cleanup or Morning Briefing.
+    Format a countdown value. Strictly shows seconds only during Cleanup or Daily Briefing.
     - target_or_delta: future datetime, timedelta, or seconds (int/float).
     """
     current = now_dt or datetime.now()
@@ -42,14 +68,14 @@ def format_countdown_for_display(
 
     if remaining_seconds < 0:
         remaining_seconds = 0
-    print(phase_name, remaining_seconds)
+    #print(phase_name, remaining_seconds)
     # Strict phase check (no substring matches)
     normalized_phase = " ".join((phase_name or "").strip().lower().split())
     allowed_aliases = {
         "cleanup",
         "clean-up",
         "between_hours",
-        "morning_briefing",
+        "daily_briefing",
 
     }
     show_sec = normalized_phase in allowed_aliases
@@ -291,7 +317,7 @@ def load_hours_from_db(use_assembly: bool) -> List[HourRecord]:
 # --------- Time engine ---------
 @dataclass
 class CurrentState:
-    phase: str  # "morning_briefing", "in_hour", "between_hours", "cleanup
+    phase: str  # "daily_briefing", "in_hour", "between_hours", "cleanup
     label: str
     remaining: int  # seconds
     cleanup_active: bool
@@ -305,7 +331,7 @@ def _dt_on(day: date, t: time) -> datetime:
 def compute_state(
     clock: datetime,
     hours: List[HourRecord],
-    morning_briefing_min: int,
+    daily_briefing_min: int,
     cleanup_min: int,
 ) -> CurrentState:
     if not hours:
@@ -337,28 +363,19 @@ def compute_state(
 
     if current_idx is not None:
         a, b, nm = spans[current_idx]
-        # Morning briefing phase for the first X minutes of the hour
-        mb_end = a + timedelta(minutes=max(0, morning_briefing_min))
+        # Daily briefing phase for the first X minutes of the hour
+        mb_end = a + timedelta(minutes=max(0, daily_briefing_min))
         if clock < mb_end:
             remaining = int((mb_end - clock).total_seconds())
-            return CurrentState(
-                phase="morning_briefing",
-                label="Morning Briefing",
-                remaining=max(0, remaining),
-                cleanup_active=False,  # Cleanup does not apply during MB
-                hour_index=current_idx,
-            )
+            phase = "daily_briefing"
+            label = "Daily Briefing"
+            cleanup_active = False
         # Otherwise normal in-hour countdown
-        remaining = int((b - clock).total_seconds())
-        cleanup_active = remaining <= max(0, cleanup_min) * 60
-        return CurrentState(
-            phase="in_hour",
-            label=nm,
-            remaining=max(0, remaining),
-            cleanup_active=cleanup_active,
-            hour_index=current_idx,
-
-        )
+        else:
+            remaining = int((b - clock).total_seconds())
+            phase = "in_hour"
+            label = nm
+            cleanup_active = remaining <= max(0, cleanup_min) * 60
     else:
         # Between hours: countdown until the next hour's start
         # If after last span, next is next day's first span
@@ -373,23 +390,28 @@ def compute_state(
             a, _, nm = spans[0]
             a_next = a + timedelta(days=1)
             remaining = int((a_next - clock).total_seconds())
-            return CurrentState(
-                phase="between_hours",
-                label=f"Next: {nm}",
-                remaining=max(0, remaining),
-                cleanup_active=False,
-                hour_index=None,
-            )
+            phase = "between_hours"
+            label = f"Next: {nm}"
+            cleanup_active = False
         else:
             a, _, nm = spans[next_span_idx]
             remaining = int((a - clock).total_seconds())
-            return CurrentState(
-                phase="between_hours",
-                label=f"Next: {nm}",
-                remaining=max(0, remaining),
-                cleanup_active=False,
-                hour_index=None,
-            )
+            phase = "between_hours"
+            label = f"Next: {nm}"
+            cleanup_active = False
+
+    # --- Inside compute_state(), right before returning the state ---
+    state = CurrentState(
+        phase=phase,
+        label=label,
+        remaining=remaining,
+        cleanup_active=cleanup_active,
+        hour_index=current_idx,
+    )
+
+    # Normalize: represent cleanup as a proper phase for consistent parsing
+    state = _normalize_phase_cleanup(state)
+    return state
 
 
 def format_hms(seconds: int) -> str:
@@ -411,7 +433,7 @@ class StartupDialog(tb.Toplevel):
         self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
-        self.result = None  # tuple: (is_sub_day, use_assembly, morning_briefing_min, cleanup_min)
+        self.result = None  # tuple: (is_sub_day, use_assembly, daily_briefing_min, cleanup_min)
 
         frm = tb.Frame(self, padding=20)
         frm.grid(row=0, column=0, sticky=NSEW)
@@ -434,7 +456,7 @@ class StartupDialog(tb.Toplevel):
         ).grid(row=row, column=0, columnspan=2, sticky=W, pady=(0, 10))
         row += 1
 
-        tb.Label(frm, text="Morning Briefing Time (minutes):").grid(row=row, column=0, sticky=E, padx=(0, 8))
+        tb.Label(frm, text="Daily Briefing Time (minutes):").grid(row=row, column=0, sticky=E, padx=(0, 8))
         tb.Entry(frm, textvariable=self.var_mb, validate="key", validatecommand=vcmd, width=10).grid(
             row=row, column=1, sticky=W
         )
@@ -509,7 +531,7 @@ class HourManagerApp(tb.Window):
         # State
         self.is_sub_day: bool = False
         self.use_assembly: bool = False
-        self.morning_briefing_min: int = 5
+        self.daily_briefing_min: int = 5
         self.cleanup_min: int = 5
         self.hours: List[HourRecord] = []
 
@@ -573,7 +595,7 @@ class HourManagerApp(tb.Window):
             self.destroy()
             return
 
-        self.is_sub_day, self.use_assembly, self.morning_briefing_min, self.cleanup_min = dlg.result
+        self.is_sub_day, self.use_assembly, self.daily_briefing_min, self.cleanup_min = dlg.result
 
         # Load hours
         try:
@@ -590,7 +612,7 @@ class HourManagerApp(tb.Window):
 
     def _tick(self):
         clk = get_now()
-        state = compute_state(clk, self.hours, self.morning_briefing_min, self.cleanup_min)
+        state = compute_state(clk, self.hours, self.daily_briefing_min, self.cleanup_min)
 
         # Label prefix for Sub Day
         prefix = "[Sub Day] " if self.is_sub_day else ""
@@ -601,7 +623,7 @@ class HourManagerApp(tb.Window):
         # Timer formatting and color
         #self.lbl_timer.config(text=format_hms(state.remaining))
         self.lbl_timer.config(text=format_countdown_for_display(state.remaining, phase_name=state.phase))
-        if state.phase == "in_hour" and state.cleanup_active:
+        if state.phase == "cleanup" and state.cleanup_active:
             self.lbl_timer.configure(bootstyle="danger")
             # Play the sound exactly once per hour when threshold is crossed
             if state.hour_index is not None and self._alerted_for_hour_idx != state.hour_index:
@@ -617,7 +639,8 @@ class HourManagerApp(tb.Window):
         self.lbl_status.config(text=f"Now: {clk.strftime('%I:%M %p').lstrip('0')}")
 
         # When we transition into a new hour, reset cleanup alert so it can fire again later
-        if state.phase != "in_hour":
+        if state.phase != "cleanup":
+           # print(f"Resetting cleanup alert for hour {state.phase}")
             self._alerted_for_hour_idx = None
 
         # Schedule next tick

@@ -20,6 +20,57 @@ import tkinter as tk
 from tkinter import messagebox
 
 
+# Add this near the top-level of HourManager.py (before HourManagerApp)
+def format_countdown_for_display(
+    target_or_delta: Union[datetime, timedelta, int, float],
+    now_dt: Optional[datetime] = None,
+    phase_name: Optional[str] = None,
+    ) -> str:
+    """
+    Format a countdown value. Strictly shows seconds only during Cleanup or Morning Briefing.
+    - target_or_delta: future datetime, timedelta, or seconds (int/float).
+    """
+    current = now_dt or datetime.now()
+
+    # Compute remaining seconds
+    if isinstance(target_or_delta, datetime):
+        remaining_seconds = int((target_or_delta - current).total_seconds())
+    elif isinstance(target_or_delta, timedelta):
+        remaining_seconds = int(target_or_delta.total_seconds())
+    else:
+        remaining_seconds = int(target_or_delta)
+
+    if remaining_seconds < 0:
+        remaining_seconds = 0
+    print(phase_name, remaining_seconds)
+    # Strict phase check (no substring matches)
+    normalized_phase = " ".join((phase_name or "").strip().lower().split())
+    allowed_aliases = {
+        "cleanup",
+        "clean-up",
+        "between_hours",
+        "morning_briefing",
+
+    }
+    show_sec = normalized_phase in allowed_aliases
+
+    if show_sec:
+        # H:MM:SS (omit hours when zero)
+        h, rem = divmod(remaining_seconds, 3600)
+        m, s = divmod(rem, 60)
+        return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+    else:
+        # Hide seconds: round up to the next minute
+        minutes_total = (remaining_seconds + 59) // 60
+        h, m = divmod(minutes_total, 60)
+        return f"{h}:{m:02d}" if h else f"{m:02d}"
+
+
+# If you previously added a wrapper named format_countdown, keep it:
+def format_countdown(*args, **kwargs) -> str:
+    return format_countdown_for_display(*args, **kwargs)
+
+
 # Sound (Windows-friendly); will noop gracefully on non-Windows
 try:
     import winsound
@@ -240,7 +291,7 @@ def load_hours_from_db(use_assembly: bool) -> List[HourRecord]:
 # --------- Time engine ---------
 @dataclass
 class CurrentState:
-    phase: str  # "morning_briefing", "in_hour", "between_hours"
+    phase: str  # "morning_briefing", "in_hour", "between_hours", "cleanup
     label: str
     remaining: int  # seconds
     cleanup_active: bool
@@ -306,6 +357,7 @@ def compute_state(
             remaining=max(0, remaining),
             cleanup_active=cleanup_active,
             hour_index=current_idx,
+
         )
     else:
         # Between hours: countdown until the next hour's start
@@ -547,7 +599,8 @@ class HourManagerApp(tb.Window):
         self.lbl_period.config(text=prefix + state.label)
 
         # Timer formatting and color
-        self.lbl_timer.config(text=format_hms(state.remaining))
+        #self.lbl_timer.config(text=format_hms(state.remaining))
+        self.lbl_timer.config(text=format_countdown_for_display(state.remaining, phase_name=state.phase))
         if state.phase == "in_hour" and state.cleanup_active:
             self.lbl_timer.configure(bootstyle="danger")
             # Play the sound exactly once per hour when threshold is crossed
@@ -561,7 +614,7 @@ class HourManagerApp(tb.Window):
         # Status line: real or test time
         tm_src = "TEST" if _test_time is not None else "REAL"
         #self.lbl_status.config(text=f"Time source: {tm_src}  •  Now: {clk.strftime('%I:%M:%S %p').lstrip('0')}")
-        self.lbl_status.config(text=f"Now: {clk.strftime('%I:%M:%S %p').lstrip('0')}")
+        self.lbl_status.config(text=f"Now: {clk.strftime('%I:%M %p').lstrip('0')}")
 
         # When we transition into a new hour, reset cleanup alert so it can fire again later
         if state.phase != "in_hour":
@@ -585,49 +638,7 @@ if __name__ == "__main__":
         except Exception:
             pass
     else:
-        set_test_time(datetime.combine(date.today(), time(10, 41, 45)))
+        set_test_time(datetime.combine(date.today(), time(10, 30, 45))) # TODO: remove testing value
+        pass # No test time now
+
     main()
-
-def format_countdown_for_display(
-    target_or_delta: Union[datetime, timedelta, int, float],
-    now_dt: Optional[datetime] = None,
-    phase_name: Optional[str] = None,
-) -> str:
-    """
-    Format a countdown value. Strictly shows seconds only during Cleanup or Morning Briefing.
-    - target_or_delta: future datetime, timedelta, or seconds (int/float).
-    """
-    current = now_dt or datetime.now()
-
-    # Compute remaining seconds
-    if isinstance(target_or_delta, datetime):
-        remaining_seconds = int((target_or_delta - current).total_seconds())
-    elif isinstance(target_or_delta, timedelta):
-        remaining_seconds = int(target_or_delta.total_seconds())
-    else:
-        remaining_seconds = int(target_or_delta)
-
-    if remaining_seconds < 0:
-        remaining_seconds = 0
-
-    # Strict phase check (no substring matches)
-    normalized_phase = " ".join((phase_name or "").strip().lower().split())
-    allowed_aliases = {
-        "cleanup",
-        "clean-up",
-        "clean up",
-        "morning briefing",
-        "morning brifing",  # common typo
-    }
-    show_sec = normalized_phase in allowed_aliases
-
-    if show_sec:
-        # H:MM:SS (omit hours when zero)
-        h, rem = divmod(remaining_seconds, 3600)
-        m, s = divmod(rem, 60)
-        return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
-    else:
-        # Hide seconds: round up to the next minute
-        minutes_total = (remaining_seconds + 59) // 60
-        h, m = divmod(minutes_total, 60)
-        return f"{h}:{m:02d}" if h else f"{m:02d}"

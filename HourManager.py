@@ -661,7 +661,7 @@ if __name__ == "__main__":
         except Exception:
             pass
     else:
-        set_test_time(datetime.combine(date.today(), time(10, 30, 45))) # TODO: remove testing value
+        set_test_time(datetime.combine(date.today(), time(14, 33, 45))) # TODO: remove testing value
         pass # No test time now
 
     main()

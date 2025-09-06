@@ -4,6 +4,12 @@ from sqlalchemy import String, Time, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from Persistance import Base, session
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .Student import Student
+
+
+
 
 class Hour(Base):
     """Represents a time period (hour) in the classroom schedule."""
@@ -25,6 +31,8 @@ class Hour(Base):
     _end_date: Mapped[datetime] = mapped_column(DateTime)
 
     # Relationships
+    students_in_hour: Mapped[List["Student"]] = relationship(back_populates="_student_hour")
+
     #students: Mapped[List["Student"]] = relationship(back_populates="student_hour")
     #teams: Mapped[List["Team"]] = relationship(back_populates="team_hour")
     #checkins: Mapped[List["Checkin"]] = relationship(back_populates="checkin_hour")
@@ -159,8 +167,17 @@ class Hour(Base):
         return session.query(Hour).filter_by(name=hour_name).first()
 
     @staticmethod
-    def get_by_ID(hour_ID: int):
-        """Retrieve an hour by its name."""
+    def get_by_id(hour_ID: int) -> Optional['Hour']:
+        """Retrieve an hour by its ID.
+
+        Args:
+            hour_ID (int): The ID of the hour to retrieve.
+
+        Returns:
+            Optional[Hour]: The hour with the specified ID, or None if not found.
+        """
+        if not isinstance(hour_ID, int) or hour_ID < 1:
+            raise ValueError("Hour ID must be a positive integer")
         return session.query(Hour).filter_by(hourID=hour_ID).first()
 
     @staticmethod

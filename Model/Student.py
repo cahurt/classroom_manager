@@ -1,0 +1,171 @@
+from datetime import datetime
+from typing import List
+import Persistance
+from sqlalchemy import Integer, DateTime, String, Boolean, Text, ForeignKey, select
+from Persistance import session
+from sqlalchemy.orm import mapped_column, Mapped, relationship
+from typing import Optional
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .Hour import Hour
+from Model.Hour import Hour
+
+
+
+class Student(Persistance.Base):
+    __tablename__ = "students"
+    MAX_STRING_LENGTH = 255
+
+    studentID: Mapped[int] = mapped_column(primary_key=True)
+    _student_glenpool_ID:Mapped[int] = mapped_column('glenpool_id',Integer,nullable=False)
+    _studentRFID: Mapped[str] = mapped_column('rfid',String(MAX_STRING_LENGTH),nullable=False)
+    _student_first_name: Mapped[str] = mapped_column('first_name',String(MAX_STRING_LENGTH),nullable=False)
+    _student_last_name: Mapped[str] = mapped_column('last_name',String(MAX_STRING_LENGTH),nullable=False)
+    _student_user_name: Mapped[str] = mapped_column('user_name',String(MAX_STRING_LENGTH),nullable=False)
+    
+    
+    #one-to-one relationships 
+    _student_hourID: Mapped[int] = mapped_column(ForeignKey("hours.hourID"),nullable=False)
+    _student_hour: Mapped["Hour"] = relationship(back_populates="students_in_hour")
+
+    # @studentTeamID: Mapped[int] = mapped_column(ForeignKey("teams.teamID"))
+    # studentTeam: Mapped["Team"] = relationship(back_populates="studentsInTeam")
+    # checkins: Mapped[List["Checkin"]] = relationship(back_populates="checkinStudent")
+    # studentBathroomVisits: Mapped[List["BathroomVisit"]] = relationship(back_populates="bathroomVisitStudent")
+    # studentReservations: Mapped[List["Reservation"]] = relationship(back_populates="reservationStudent")
+
+    def __init__(self, studentID, glenpool_id: int, rfid: str, first_name: str, last_name: str, user_name: str, hour: Hour):
+        """Initialize a new Student instance.
+
+        Args:
+            glenpool_id (int): Student's Glenpool ID
+            rfid (str): Student's RFID
+            first_name (str): Student's first name
+            last_name (str): Student's last name
+            user_name (str): Student's username
+            hour_id (int): Student's hour ID
+        """
+        self.studentID = studentID
+        self._student_glenpool_ID = glenpool_id
+        self._studentRFID = rfid
+        self._student_first_name = first_name
+        self._student_last_name = last_name
+        self._student_user_name = user_name
+        self._student_hour = hour
+
+
+
+
+    @property
+    def glenpool_id(self) -> int:
+        """Get student's Glenpool ID."""
+        return self._student_glenpool_ID
+
+    @glenpool_id.setter
+    def glenpool_id(self, value: int) -> None:
+        """Set student's Glenpool ID."""
+        self._student_glenpool_ID = value
+
+    @property
+    def rfid(self) -> str:
+        """Get student's RFID."""
+        return self._studentRFID
+
+    @rfid.setter
+    def rfid(self, value: str) -> None:
+        """Set student's RFID."""
+        self._studentRFID = value
+
+    @property
+    def first_name(self) -> str:
+        """Get student's first name."""
+        return self._student_first_name
+
+    @first_name.setter
+    def first_name(self, value: str) -> None:
+        """Set student's first name."""
+        self._student_first_name = value
+
+    @property
+    def last_name(self) -> str:
+        """Get student's last name."""
+        return self._student_last_name
+
+    @last_name.setter
+    def last_name(self, value: str) -> None:
+        """Set student's last name."""
+        self._student_last_name = value
+
+    @property
+    def user_name(self) -> str:
+        """Get student's username."""
+        return self._student_user_name
+
+    @user_name.setter
+    def user_name(self, value: str) -> None:
+        """Set student's username."""
+        self._student_user_name = value
+
+    @property
+    def hour_id(self) -> int:
+        """Get student's hour ID."""
+        return self._student_hourID
+
+    @hour_id.setter
+    def hour_id(self, value: int) -> None:
+        """Set student's hour ID."""
+        self._student_hourID = value
+
+    @property
+    def hour(self) -> "Hour":
+        """Get student's assigned hour."""
+        return self._student_hour
+
+    @hour.setter
+    def hour(self, value: "Hour") -> None:
+        """Set student's assigned hour."""
+        self._student_hour = value
+
+
+    @classmethod
+    def get_students_by_hour(cls, hour_id: int):
+        """Get a query for students in a specific hour.
+
+        Args:
+            hour_id (int): The hour ID to filter students by
+
+        Returns:
+            Query: SQLAlchemy query object for students in the specified hour
+        """
+        return session.query(cls).filter(cls._student_hourID == hour_id)
+
+    @classmethod
+    def get_all_ordered_by_last_name(cls):
+        """Get all students ordered by last name.
+
+        Returns:
+            Query: SQLAlchemy query object for all students ordered by last name
+        """
+        return session.query(cls).order_by(cls._student_last_name).all()
+
+    @classmethod
+    def get_by_id(cls, student_id: int):
+        """Get a student by their ID.
+
+        Args:
+            student_id (int): The ID of the student to retrieve
+
+        Returns:
+            Student: The student with the specified ID, or None if not found
+        """
+        return session.query(cls).filter(cls.studentID == student_id).first()
+
+    def save(self):
+        """Save this student instance to the database."""
+        session.add(self)
+        session.commit()
+
+    def update(self):
+        """Update this student's information in the database."""
+        session.merge(self)
+        session.commit()

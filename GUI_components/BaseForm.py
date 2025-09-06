@@ -3,7 +3,7 @@ from tkinter import colorchooser
 
 import ttkbootstrap as tb
 
-from Model import Unit, Objective
+from Model import Unit, Objective, Hour
 
 
 class BaseForm(tb.Frame):
@@ -91,10 +91,20 @@ class BaseForm(tb.Frame):
                 # Store the unit_choices for later lookup
                 field_entry.unit_choices = unit_choices
 
+            elif entry_type == 'hour_dropdown':
+                hours = Hour.get_all_order_by_start_time()
+                # Create list of tuples with (hour_ID, name) for the combobox
+                hour_choices = [(str(hour.hourID), hour.name) for hour in hours] if not extra else extra[0]
+                # Create a Combobox with just the names
+                field_entry = tb.Combobox(self, values=[name for _, name in hour_choices])
+                # Store the hour_choices for later lookup
+                field_entry.hour_choices = hour_choices
+
             elif entry_type == 'objective_dropdown':
                 objectives = Objective.get_all()
                 # Create list of tuples with (objective_ID, name) for the combobox
-                objective_choices = [(str(objective.objective_ID), objective.name) for objective in objectives] if not extra else extra[0]
+                objective_choices = [(str(objective.objective_ID), objective.name) for objective in
+                                     objectives] if not extra else extra[0]
                 # Create a Combobox with just the names
                 field_entry = tb.Combobox(self, values=[name for _, name in objective_choices])
                 # Store the objective_choices for later lookup
@@ -133,9 +143,9 @@ class BaseForm(tb.Frame):
 
             elif entry_type.startswith('time'):
                 field_entry = tb.Entry(self, width=10)
-                #field_entry.config(validate='key',
-                                   #validatecommand=(self.register(lambda s: not s or self._validate_time_format(s)),
-                                    #                '%P'))
+                # field_entry.config(validate='key',
+                # validatecommand=(self.register(lambda s: not s or self._validate_time_format(s)),
+                #                '%P'))
 
             elif entry_type.startswith('bool'):
                 field_entry = tb.Checkbutton(self)
@@ -206,15 +216,14 @@ class BaseForm(tb.Frame):
         self.clear_validation_error()
         return True
 
-
     def populate_fields(self, field_values):
         for field in field_values:
             if field not in self.entry_dictionary:
                 continue
-        
+
             widget = self.entry_dictionary[field]
             value = field_values.get(field)
-        
+
             if isinstance(widget, tb.DateEntry):
                 widget.entry.delete(0, 'end')
                 widget.entry.insert(0, value)
@@ -232,26 +241,30 @@ class BaseForm(tb.Frame):
                 # Handle unit dropdown population
                 if hasattr(value, 'name'):
                     widget.set(value._name)
-            elif hasattr(widget, 'objective_choices'):
-                # Handle objective dropdown population
-                if hasattr(value, 'name'):
-                    widget.set(value._name)
-            elif isinstance(widget, tb.Entry):
-                widget.delete(0, 'end')
-                # Convert value to string for Entry widgets
-                if value is not None:
-                    widget.insert(0, str(value))
-            else:
-                # Generic fallback for other widget types
-                widget.delete(0, 'end')
-                if value is not None:
-                    widget.insert(0, str(value))
+                elif hasattr(widget, 'hour_choices'):
+                    # Handle hour dropdown population
+                    if hasattr(value, 'name'):
+                        widget.set(value._name)
+                elif hasattr(widget, 'objective_choices'):
+                    # Handle objective dropdown population
+                    if hasattr(value, 'name'):
+                        widget.set(value._name)
+                elif isinstance(widget, tb.Entry):
+                    widget.delete(0, 'end')
+                    # Convert value to string for Entry widgets
+                    if value is not None:
+                        widget.insert(0, str(value))
+                else:
+                    # Generic fallback for other widget types
+                    widget.delete(0, 'end')
+                    if value is not None:
+                        widget.insert(0, str(value))
 
 
     def get_all_entries(self):
         self.value_list = {}
         for field_label, entry_widget in self.entry_dictionary.items():
-            #print('field_label: ', field_label, ' ', entry_widget.get())
+            # print('field_label: ', field_label, ' ', entry_widget.get())
 
             # Handle different widget types
             if isinstance(entry_widget, tb.DateEntry):
@@ -278,6 +291,16 @@ class BaseForm(tb.Frame):
                         break
                 self.value_list[field_label] = Unit.get_by_id(unit_id) if unit_id else None
 
+            elif hasattr(entry_widget, 'hour_choices'):
+                selected_name = entry_widget.get()
+                # Find the corresponding hour_ID for the selected name
+                hour_id = None
+                for id_str, name in entry_widget.hour_choices:
+                    if name == selected_name:
+                        hour_id = int(id_str)
+                        break
+                self.value_list[field_label] = Hour.get_by_id(hour_id) if hour_id else None
+
             elif hasattr(entry_widget, 'objective_choices'):
                 selected_name = entry_widget.get()
                 # Find the corresponding objective_ID for the selected name
@@ -291,7 +314,6 @@ class BaseForm(tb.Frame):
             elif isinstance(entry_widget, tb.Checkbutton):
                 value = bool(entry_widget.instate(['selected']))
                 self.value_list[field_label] = value
-
             else:
                 value = entry_widget.get()  # Regular Entry widgets
                 self.value_list[field_label] = value

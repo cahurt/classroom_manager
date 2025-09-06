@@ -7,6 +7,7 @@ from GUI_components.ObjectiveTab import ObjectiveTab
 from GUI_components.UnitTab import UnitTab
 from Model.AddDefaultObjects import AddDefaultObjects
 from GUI_components.ProjectTab import ProjectTab
+from GUI_components.StudentTab import StudentTab
 
 class ProjectManager:
     def __init__(self):
@@ -31,7 +32,8 @@ class ProjectManager:
             "Classroom Locations": ClassroomLocationsTab,
             "Objectives": ObjectiveTab,
             "Projects": ProjectTab,
-            "Hours": HourTab
+            "Hours": HourTab,
+            "Students": StudentTab
         }
 
         for label, tab_class in tabs.items():

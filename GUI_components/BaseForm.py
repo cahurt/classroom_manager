@@ -216,49 +216,74 @@ class BaseForm(tb.Frame):
         self.clear_validation_error()
         return True
 
+    # python
     def populate_fields(self, field_values):
-        for field in field_values:
+        from datetime import date, datetime
+
+        if not field_values:
+            return
+
+        for field, raw_value in field_values.items():
             if field not in self.entry_dictionary:
                 continue
 
             widget = self.entry_dictionary[field]
-            value = field_values.get(field)
 
-            if isinstance(widget, tb.DateEntry):
-                widget.entry.delete(0, 'end')
-                widget.entry.insert(0, value)
-            elif isinstance(widget, tb.Text):
-                widget.delete("1.0", "end")
-                widget.insert("1.0", value)
-            elif isinstance(widget, tb.Button):
-                widget.color = self.DEFAULT_COLOR
-            elif isinstance(widget, tb.Checkbutton):
-                if value:
-                    widget.state(['selected'])
+            # Normalize the value
+            value = "" if raw_value is None else raw_value
+            if isinstance(value, (date, datetime)):
+                try:
+                    value = value.strftime(self.DISPLAY_DATE_FORMAT)
+                except Exception:
+                    value = str(value)
+
+            try:
+                # DateEntry (uses an internal Entry)
+                if isinstance(widget, tb.DateEntry):
+                    widget.entry.delete(0, "end")
+                    widget.entry.insert(0, str(value))
+
+                # Multiline text
+                elif isinstance(widget, tb.Text):
+                    widget.delete("1.0", "end")
+                    widget.insert("1.0", str(value))
+
+                # Combobox
+                elif hasattr(widget, "set") and (
+                    isinstance(widget, getattr(tb, "Combobox", object)) or
+                    widget.winfo_class() in ("TCombobox", "Combobox")
+                ):
+                    widget.set("" if value is None else str(value))
+
+                # Checkbutton
+                elif isinstance(widget, getattr(tb, "Checkbutton", object)) or widget.winfo_class() in ("TCheckbutton", "Checkbutton"):
+                    # Prefer setting the linked variable if present
+                    varname = widget.cget("variable") if hasattr(widget, "cget") else None
+                    if varname:
+                        try:
+                            widget.setvar(varname, 1 if bool(value) else 0)
+                        except Exception:
+                            pass
+                    # Also try to reflect state visually
+                    try:
+                        widget.state(["selected"] if bool(value) else ["!selected"])
+                    except Exception:
+                        pass
+
+                # Entry / Spinbox-like (delete/insert API)
+                elif hasattr(widget, "delete") and hasattr(widget, "insert"):
+                    widget.delete(0, "end")
+                    widget.insert(0, str(value))
+
+                # Last resort: variable-backed widget
                 else:
-                    widget.state(['!selected'])
-            elif hasattr(widget, 'unit_choices'):
-                # Handle unit dropdown population
-                if hasattr(value, 'name'):
-                    widget.set(value._name)
-                elif hasattr(widget, 'hour_choices'):
-                    # Handle hour dropdown population
-                    if hasattr(value, 'name'):
-                        widget.set(value._name)
-                elif hasattr(widget, 'objective_choices'):
-                    # Handle objective dropdown population
-                    if hasattr(value, 'name'):
-                        widget.set(value._name)
-                elif isinstance(widget, tb.Entry):
-                    widget.delete(0, 'end')
-                    # Convert value to string for Entry widgets
-                    if value is not None:
-                        widget.insert(0, str(value))
-                else:
-                    # Generic fallback for other widget types
-                    widget.delete(0, 'end')
-                    if value is not None:
-                        widget.insert(0, str(value))
+                    var = getattr(widget, "variable", None)
+                    if var and hasattr(var, "set"):
+                        var.set(value)
+
+            except Exception:
+                # Optionally log here if you have a logger
+                continue
 
 
     def get_all_entries(self):

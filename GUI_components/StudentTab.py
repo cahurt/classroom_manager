@@ -31,7 +31,8 @@ class StudentTab(BaseTab):
         ('Hour', 'hour_ID', 'hour_dropdown')
     ]
 
-    TREE_COLUMNS = [('ID', 'studentID', 0),
+    TREE_COLUMNS = [('ID', 'studentID', 100),
+                    ('Glenpool ID', 'glenpool_id', 100),
                     ('First Name', 'first_name', 150),
                     ('Last Name', 'last_name', 150),
                     ('Hour', 'hour_id', 50),

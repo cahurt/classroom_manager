@@ -561,49 +561,49 @@ class KeypadApp(tb.Window):
                 except Exception:
                     pass
                 parent = getattr(self, "left_pane", None)
-        else:
-            # No previous info_text; default to left_pane
-            parent = getattr(self, "left_pane", None)
+    else:
+        # No previous info_text; default to left_pane
+        parent = getattr(self, "left_pane", None)
 
-        if parent is None:
-            # As a last resort, attach to the main app window/pane if available
-            parent = getattr(self, "left_pane", None) or getattr(self, "right_pane", None)
+    if parent is None:
+        # As a last resort, attach to the main app window/pane if available
+        parent = getattr(self, "left_pane", None) or getattr(self, "right_pane", None)
 
-        # Create the new flexible form container
-        container_parent = parent if parent is not None else self
+    # Create the new flexible form container
+    container_parent = parent if parent is not None else self
+    try:
+        # Use the ttkbootstrap module directly
+        self.clock_in_form = tb.Frame(container_parent)
+    except Exception:
+        # Fallback to the tkinter module directly
+        self.clock_in_form = tk.Frame(container_parent)
+
+    # Place it where the old info_text was
+    if target_manager == "grid" and grid_opts:
+        self.clock_in_form.grid(**grid_opts)
+    elif target_manager == "pack" and pack_opts:
+        self.clock_in_form.pack(**pack_opts)
+    else:
+        # Default placement
         try:
-            # Use the ttkbootstrap module directly
-            self.clock_in_form = tb.Frame(container_parent)
-        except Exception:
-            # Fallback to the tkinter module directly
-            self.clock_in_form = tk.Frame(container_parent)
-
-        # Place it where the old info_text was
-        if target_manager == "grid" and grid_opts:
-            self.clock_in_form.grid(**grid_opts)
-        elif target_manager == "pack" and pack_opts:
-            self.clock_in_form.pack(**pack_opts)
-        else:
-            # Default placement
-            try:
-                # Prefer grid if the parent already uses it
-                if hasattr(container_parent, "grid_slaves") and container_parent.grid_slaves():
-                    self.clock_in_form.grid(row=0, column=0, sticky="nsew")
-                    try:
-                        container_parent.grid_rowconfigure(0, weight=1)
-                        container_parent.grid_columnconfigure(0, weight=1)
-                    except Exception:
-                        pass
-                else:
-                    self.clock_in_form.pack(fill="both", expand=True)
-            except Exception:
+            # Prefer grid if the parent already uses it
+            if hasattr(container_parent, "grid_slaves") and container_parent.grid_slaves():
+                self.clock_in_form.grid(row=0, column=0, sticky="nsew")
+                try:
+                    container_parent.grid_rowconfigure(0, weight=1)
+                    container_parent.grid_columnconfigure(0, weight=1)
+                except Exception:
+                    pass
+            else:
                 self.clock_in_form.pack(fill="both", expand=True)
+        except Exception:
+            self.clock_in_form.pack(fill="both", expand=True)
 
-        # Keep alias to avoid attribute errors in existing code paths
-        self.info_text = self.clock_in_form
+    # Keep alias to avoid attribute errors in existing code paths
+    self.info_text = self.clock_in_form
 
-        # Start with an empty form
-        self._clear_info_display()
+    # Start with an empty form
+    self._clear_info_display()
 
 
 def _set_info_display_text(self, text: str) -> None:

@@ -25,7 +25,7 @@ class ProjectCategory(Base):
     _name: Mapped[str] = mapped_column('project_category_name', String(MAX_STRING_LENGTH), nullable=False)
     _description: Mapped[str] = mapped_column('project_category_description', Text)
 
-    _projects_in_category: Mapped[List["Project"]] = relationship("Project", back_populates="checkin_project")
+    _projects_in_category: Mapped[List[Project]] = relationship(back_populates="_project_category")
 
     def __init__(self, name: str, description: str = ""):
         """Initialize a new objective.
@@ -64,12 +64,22 @@ class ProjectCategory(Base):
         session.delete(self)
         session.commit()
 
-    @classmethod
-    def get_by_id(cls, objective_ID: int) -> Optional['ProjectCategory']:
-        """Retrieve a project category by its ID."""
-        return session.query(cls).filter_by(objective_ID=objective_ID).first()
+    
 
     @classmethod
+    def get_by_id(cls, category_id: int) -> Optional['ProjectCategory']:
+        """Retrieve a project category by its ID.
+        Args:
+            category_id: The ID of the project category to retrieve
+        Returns:
+            The ProjectCategory if found, None otherwise
+        """
+        return session.query(cls).filter(cls.project_category_ID == category_id).first()
+
+
+    @classmethod
+
+
     def get_all_order_by_name(cls) -> List['ProjectCategory']:
-        """Retrieve all project categories ordered by name."""
-        return session.query(cls).order_by(cls._name).all()
+            """Retrieve all project categories ordered by name."""
+            return session.query(cls).order_by(cls._name).all()

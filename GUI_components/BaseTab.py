@@ -98,6 +98,7 @@ class BaseTab(tb.Frame):
             if hasattr(e, 'row_data'):
                 error_msg += f"\nProblematic row data: {e.row_data}"
             self.show_error(f"Failed to read CSV file: {error_msg}")
+            print(e)
 
     def _process_csv_file(self, file_path, header_row):
         #"""Generic CSV file processor"""

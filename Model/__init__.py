@@ -1,11 +1,12 @@
 ## Model/__init__.py
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from .Objective import Objective
 from .Checkin import Checkin
 from .Student import Student
 from .Hour import Hour
-from .Objective import Objective
 from .Project import Project
+
 from .ProjectCategory import ProjectCategory
 from .ClassroomLocation import ClassroomLocation
 from .Unit import Unit

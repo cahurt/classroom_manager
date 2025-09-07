@@ -3,7 +3,8 @@ from tkinter import filedialog, messagebox
 import ttkbootstrap as tb
 from datetime import datetime
 
-import Persistance
+from typing import TYPE_CHECKING
+from Model import ProjectCategory
 from Model import Objective
 from Model.Project import Project
 from Model.Unit import Unit
@@ -37,7 +38,7 @@ class ProjectTab(BaseTab):
         ('Sub Eligible', 'sub_eligible', 'bool'),
         ('Unit', 'unit', 'unit_dropdown'),
         ('Objective', 'objective', 'objective_dropdown'),
-        ('Objective', 'objective', 'project_category_dropdown')
+        ('Category', 'project_category', 'project_category_dropdown')
     ]
 
     TREE_COLUMNS = [('ID', 'project_ID', 0),
@@ -50,7 +51,7 @@ class ProjectTab(BaseTab):
 
     CSV_HEADERS = ['name', 'display_name', 'description', 'open_date', 'close_date', 'days_allowed', 'seats',
                    'minimum_group_size', 'maximum_group_size', 'sub_eligible', 'scheduled_date',
-                   'unit', 'objective', 'category']
+                   'unit', 'objective', 'project_category']
 
 
     def __init__(self, notebook):
@@ -175,7 +176,7 @@ class ProjectTab(BaseTab):
             unit_value = dictionary['unit']
             if isinstance(unit_value, str):
                 id_to_get = int(unit_value.strip())
-                print(f'unit value is string {id_to_get}... converting...')
+
                 unit_value = Unit.get_by_id(id_to_get)
                 #print(f"unit value is {unit_value} and id is {id_to_get} and hour value is {hour_value}")
 
@@ -184,10 +185,12 @@ class ProjectTab(BaseTab):
                 id_to_get = int(obj_value.strip())
                 obj_value = Objective.get_by_id(id_to_get)
 
-            category_value = dictionary['category']
+            category_value = dictionary['project_category']
             if isinstance(category_value, str):
                 id_to_get = int(category_value.strip())
-                category_value = Objective.get_by_id(id_to_get)
+                print(f'category value is string {id_to_get}... converting...')
+                category_value = ProjectCategory.get_by_id(id_to_get)
+                print(f'...converted to {category_value}')
 
             project = Project(
                 name=dictionary['name'],
@@ -205,9 +208,14 @@ class ProjectTab(BaseTab):
                 category=category_value,
                 ignore_validation=True
             )
+            # this is a special case where we might need to create a project with a specific ID
             if 'project_ID' in dictionary:
                 print(f"set project ID from dict function as {dictionary['project_ID']}")
                 project.projectID = dictionary['project_ID']
+
+            #testing method to determine if we are getting an error from an odd bug where this isn't set right #TODO: suss out why only this is not being set by the persistance layer
+            project.category_id = category_value.project_category_ID
+
 
         # if one does, we set values directly, we should never get here from the CSV import so no need for sanity checking
         else:

@@ -37,7 +37,7 @@ class Unit(Base):
     _closing_date: Mapped[datetime] = mapped_column('unit_closing_date', DateTime)
 
     # Relationships
-    _projects_in_unit: Mapped[List["Project"]] = relationship("Model.Project.Project", back_populates="unit")
+    _projects_in_unit: Mapped[List["Project"]] = relationship(back_populates="_unit")
 
     def __init__(self, name: str, sequence: int,
                  opening_date: datetime, closing_date: datetime,

@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from .Objective import Objective
     from .Unit import Unit
     from .Hour import Hour
+    from  .Checkin import Checkin
 
 
 
@@ -38,17 +39,19 @@ class Project(Base):
     _scheduled_date: Mapped[datetime] = mapped_column('project_scheduled_date', DateTime, nullable=True)
 
 
-
     # One to One relationships
     _unit_ID: Mapped[int] = mapped_column('project_unit_ID', ForeignKey("units.unit_ID"))
-    unit: Mapped[Unit] = relationship("Unit",back_populates="_projects_in_unit")
-    _objective_ID: Mapped[int] = mapped_column('project_objective_ID', ForeignKey("objectives.objective_ID"))
-    objective: Mapped[Objective] = relationship("Objective", back_populates="_projects")
-    _category_ID: Mapped[int] = mapped_column('project_category_ID', ForeignKey("project_categories.project_category_ID"))
-    category: Mapped[ProjectCategory] = relationship("ProjectCategory", back_populates="_projects_in_category")
+    _unit: Mapped[Unit] = relationship(back_populates="_projects_in_unit")
 
-    #One to Many relationships
-    #project_checkins: Mapped[List["Checkin"]] = relationship(back_populates="checkin_project")
+    _objective_ID: Mapped[int] = mapped_column('project_objective_ID', ForeignKey("objectives.objective_ID"))
+    _objective: Mapped[Objective] = relationship(back_populates="_projects")
+
+    _category_ID: Mapped[int] = mapped_column('project_category_ID',ForeignKey("project_categories.project_category_ID"))
+    _project_category: Mapped[ProjectCategory] = relationship(back_populates="_projects_in_category")
+
+    # One to Many relationships
+    _project_checkins: Mapped[List["Checkin"]] = relationship(back_populates="_checkin_project")
+
 
     # Many to One relationships
     #project_consumable_checkouts: Mapped[List["ConsumableCheckout"]] = relationship(back_populates="consumable_checkout_project")
@@ -231,6 +234,47 @@ class Project(Base):
         if not isinstance(value, datetime):
             raise ValueError("Scheduled date must be a datetime object")
         self._scheduled_date = value
+
+
+    @property
+    def unit_id(self) -> int:
+        return self._unit_ID
+
+    @unit_id.setter
+    def unit_id(self, value: int) -> None:
+        self._unit_ID = value
+
+    @property
+    def objective_id(self) -> int:
+        return self._objective_ID
+
+    @objective_id.setter
+    def objective_id(self, value: int) -> None:
+        self._objective_ID = value
+
+    @property
+    def category_id(self) -> int:
+        return self._category_ID
+
+    @category_id.setter
+    def category_id(self, value: int) -> None:
+        self._category_ID = value
+
+    @property
+    def project_category(self) -> ProjectCategory:
+        return self._project_category
+
+    @project_category.setter
+    def project_category(self, value: ProjectCategory) -> None:
+        self._project_category = value
+
+    @property
+    def project_checkins(self) -> List["Checkin"]:
+        return self._project_checkins
+
+    @project_checkins.setter
+    def project_checkins(self, value: List["Checkin"]) -> None:
+        self._project_checkins = value
 
     #*********************************************************************
     #           Persistance methods

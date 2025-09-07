@@ -111,9 +111,9 @@ class BaseForm(tb.Frame):
                 field_entry.objective_choices = objective_choices
 
             elif entry_type == 'project_category_dropdown':
-                projectcategories = ProjectCategory.get_all()
-                # Create list of tuples with (objective_ID, name) for the combobox
-                project_category_choices = [(str(project_category.objective_ID), project_category.name) for project_category in
+                projectcategories = ProjectCategory.get_all_order_by_name()
+                # Create list of tuples with (project_category_ID, name) for the combobox
+                project_category_choices = [(str(project_category.project_category_ID), project_category.name) for project_category in
                                      projectcategories] if not extra else extra[0]
                 # Create a Combobox with just the names
                 field_entry = tb.Combobox(self, values=[name for _, name in project_category_choices])

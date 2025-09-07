@@ -11,6 +11,7 @@ from Persistance import Base, session
 if TYPE_CHECKING:
     from .Student import Student
     from .Hour import Hour
+    from .Project import Project
     from .ClassroomLocation import ClassroomLocation
 
 
@@ -30,7 +31,7 @@ class Checkin(Base):
     #checkin_student: Mapped[Student] = relationship(back_populates="student_checkins")
 
     _checkin_projectID: Mapped[int] = mapped_column(ForeignKey("projects.project_ID"), nullable=False)
-    checkin_project: Mapped["Project"] = relationship(back_populates="project_checkins")
+    _checkin_project: Mapped[Project] = relationship(back_populates="_project_checkins")
 
     def __init__(self, checkin_datetime: datetime, checkin_hour: Hour, checkin_student: Student,
                  checkin_project: Student):
@@ -38,7 +39,7 @@ class Checkin(Base):
         self._checkin_last_edited = datetime.now()
         self._checkin_hour = checkin_hour
         self._checkin_Student = checkin_student
-        self.checkin_project = checkin_project
+        self._checkin_project = checkin_project
 
     @property
     def checkin_datetime(self) -> datetime:
@@ -77,7 +78,7 @@ class Checkin(Base):
 
     @checkin_project.setter
     def checkin_project(self, value: "Student") -> None:
-        self.checkin_project = value
+        self._checkin_project = value
         self._checkin_last_edited = datetime.now()
 
     def save(self) -> None:

@@ -33,7 +33,7 @@ class Objective(Base):
     _hours_allocated: Mapped[int] = mapped_column('hours_allocated', Integer, default=0)
 
     #relationships
-    _projects: Mapped[List[Project]] = relationship(back_populates="objective")
+    _projects: Mapped[List[Project]] = relationship(back_populates="_objective")
 
     def __init__(self, name: str, description: str = "", hours_required: float = 0, hours_allocated: float = 0,
                  ignore_validation=False):

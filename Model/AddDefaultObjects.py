@@ -1,4 +1,22 @@
-import Model.ProjectCategory
+
+# Model/AddDefaultObjects.py
+from __future__ import annotations
+from typing import TYPE_CHECKING
+from datetime import datetime
+
+from Persistance import session
+
+# For type hints only; import actual models inside functions if needed.
+if TYPE_CHECKING:
+    from .Student import Student
+    from .Project import Project
+    from .ProjectCategory import ProjectCategory
+    from .Objective import Objective
+    from .Unit import Unit
+    from .Hour import Hour
+    from .Checkin import Checkin
+    from .ClassroomLocation import ClassroomLocation
+
 
 class AddDefaultObjects:
 

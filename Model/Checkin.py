@@ -1,23 +1,20 @@
+# Model/Checkin.py
+from __future__ import annotations
+from typing import TYPE_CHECKING, Optional
 from datetime import datetime
-from typing import List, Optional
-import Persistance
-from sqlalchemy import Integer, DateTime, String, Boolean, Text, ForeignKey, select
 
-from Model import Student
-from Persistance import session
-from sqlalchemy.orm import mapped_column, Mapped, relationship
-from typing import Optional
-from typing import TYPE_CHECKING
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, String
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+
+from Persistance import Base, session
+
 if TYPE_CHECKING:
-    from .Hour import Hour
     from .Student import Student
-    from .Project import Project
-from Model.Hour import Hour
-from Model.Student import Student
-from Model.Project import Project
+    from .Hour import Hour
+    from .ClassroomLocation import ClassroomLocation
 
 
-class Checkin(Persistance.Base):
+class Checkin(Base):
     __tablename__ = "checkins"
     MAX_STRING_LENGTH = 255
 
@@ -27,21 +24,21 @@ class Checkin(Persistance.Base):
 
     # one-to-one relationships 
     _checkin_hourID: Mapped[int] = mapped_column(ForeignKey("hours.hourID"), nullable=False)
-    _checkin_hour: Mapped["Hour"] = relationship(back_populates="checkins_in_hour")
+    checkin_hour: Mapped[Hour] = relationship(back_populates="checkins_in_hour")
 
     _checkin_studentID: Mapped[int] = mapped_column(ForeignKey("students.studentID"), nullable=False)
-    _checkin_Student: Mapped["Student"] = relationship(back_populates="student_checkins")
+    #checkin_student: Mapped[Student] = relationship(back_populates="student_checkins")
 
-    _checkin_projectID: Mapped[int] = mapped_column(ForeignKey("projects.projectID"), nullable=False)
-    _checkin_project: Mapped["Student"] = relationship(back_populates="project_checkins")
+    _checkin_projectID: Mapped[int] = mapped_column(ForeignKey("projects.project_ID"), nullable=False)
+    checkin_project: Mapped["Project"] = relationship(back_populates="project_checkins")
 
-    def __init__(self, checkin_datetime: datetime, checkin_hour: "Hour", checkin_student: "Student",
-                 checkin_project: "Student"):
+    def __init__(self, checkin_datetime: datetime, checkin_hour: Hour, checkin_student: Student,
+                 checkin_project: Student):
         self._checkin_datetime = checkin_datetime
         self._checkin_last_edited = datetime.now()
         self._checkin_hour = checkin_hour
         self._checkin_Student = checkin_student
-        self._checkin_project = checkin_project
+        self.checkin_project = checkin_project
 
     @property
     def checkin_datetime(self) -> datetime:
@@ -80,7 +77,7 @@ class Checkin(Persistance.Base):
 
     @checkin_project.setter
     def checkin_project(self, value: "Student") -> None:
-        self._checkin_project = value
+        self.checkin_project = value
         self._checkin_last_edited = datetime.now()
 
     def save(self) -> None:

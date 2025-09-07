@@ -1,36 +1,42 @@
+# Model/Student.py
+from __future__ import annotations
+from typing import TYPE_CHECKING, Optional, List
 from datetime import datetime
-from typing import List
-import Persistance
-from sqlalchemy import Integer, DateTime, String, Boolean, Text, ForeignKey, select
-from Persistance import session
-from sqlalchemy.orm import mapped_column, Mapped, relationship
-from typing import Optional
-from typing import TYPE_CHECKING
+
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+
+from Persistance import Base, session
+
 if TYPE_CHECKING:
+    from .Project import Project
+    from .Objective import Objective
     from .Hour import Hour
-from Model.Hour import Hour
+    from .Checkin import Checkin
+    from .ClassroomLocation import ClassroomLocation
 
 
 
-class Student(Persistance.Base):
+class Student(Base):
     __tablename__ = "students"
     MAX_STRING_LENGTH = 255
 
     studentID: Mapped[int] = mapped_column(primary_key=True)
-    _student_glenpool_ID:Mapped[int] = mapped_column('glenpool_id',Integer,nullable=False)
-    _studentRFID: Mapped[str] = mapped_column('rfid',String(MAX_STRING_LENGTH),nullable=False)
-    _student_first_name: Mapped[str] = mapped_column('first_name',String(MAX_STRING_LENGTH),nullable=False)
-    _student_last_name: Mapped[str] = mapped_column('last_name',String(MAX_STRING_LENGTH),nullable=False)
-    _student_user_name: Mapped[str] = mapped_column('user_name',String(MAX_STRING_LENGTH),nullable=False)
+    _student_glenpool_ID:Mapped[int] = mapped_column('student_glenpool_id',Integer,nullable=False)
+    _studentRFID: Mapped[str] = mapped_column('student_rfid',String(MAX_STRING_LENGTH),nullable=False)
+    _student_first_name: Mapped[str] = mapped_column('student_first_name',String(MAX_STRING_LENGTH),nullable=False)
+    _student_last_name: Mapped[str] = mapped_column('student_last_name',String(MAX_STRING_LENGTH),nullable=False)
+    _student_user_name: Mapped[str] = mapped_column('student_user_name',String(MAX_STRING_LENGTH),nullable=False)
     
     
     #one-to-one relationships 
     _student_hourID: Mapped[int] = mapped_column(ForeignKey("hours.hourID"),nullable=False)
-    _student_hour: Mapped["Hour"] = relationship(back_populates="students_in_hour")
+    _student_hour: Mapped[Hour] = relationship(back_populates="students_in_hour")
+
+    #student_checkins: Mapped[list[Checkin]] = relationship(back_populates="checkin_student", cascade="all, delete-orphan")
 
     # @studentTeamID: Mapped[int] = mapped_column(ForeignKey("teams.teamID"))
     # studentTeam: Mapped["Team"] = relationship(back_populates="studentsInTeam")
-    # checkins: Mapped[List["Checkin"]] = relationship(back_populates="checkinStudent")
     # studentBathroomVisits: Mapped[List["BathroomVisit"]] = relationship(back_populates="bathroomVisitStudent")
     # studentReservations: Mapped[List["Reservation"]] = relationship(back_populates="reservationStudent")
 
@@ -117,12 +123,12 @@ class Student(Persistance.Base):
         self._student_hourID = value
 
     @property
-    def hour(self) -> "Hour":
+    def hour(self) -> Hour:
         """Get student's assigned hour."""
         return self._student_hour
 
     @hour.setter
-    def hour(self, value: "Hour") -> None:
+    def hour(self, value: Hour) -> None:
         """Set student's assigned hour."""
         self._student_hour = value
 

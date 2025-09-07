@@ -3,7 +3,7 @@ from tkinter import colorchooser
 
 import ttkbootstrap as tb
 
-from Model import Unit, Objective, Hour
+from Model import Unit, Objective, Hour, ProjectCategory
 
 
 class BaseForm(tb.Frame):
@@ -109,6 +109,16 @@ class BaseForm(tb.Frame):
                 field_entry = tb.Combobox(self, values=[name for _, name in objective_choices])
                 # Store the objective_choices for later lookup
                 field_entry.objective_choices = objective_choices
+
+            elif entry_type == 'project_category_dropdown':
+                projectcategories = ProjectCategory.get_all()
+                # Create list of tuples with (objective_ID, name) for the combobox
+                project_category_choices = [(str(project_category.objective_ID), project_category.name) for project_category in
+                                     projectcategories] if not extra else extra[0]
+                # Create a Combobox with just the names
+                field_entry = tb.Combobox(self, values=[name for _, name in project_category_choices])
+                # Store the objective_choices for later lookup
+                field_entry.project_category_choices = project_category_choices
 
             elif entry_type.startswith('text'):
                 width, height, max_chars = eval(entry_type.replace('text', ''))
@@ -295,17 +305,21 @@ class BaseForm(tb.Frame):
             if isinstance(entry_widget, tb.DateEntry):
                 value = entry_widget.entry.get()  # Use .entry.get() for DateEntry
                 self.value_list[field_label] = datetime.strptime(value, '%m/%d/%Y')
+
             elif hasattr(entry_widget, 'time'):
                 value = entry_widget.get().strip()
                 if value:
                     self.value_list[field_label] = datetime.strptime(value, self.TIME_FORMAT).time()
                 else:
                     self.value_list[field_label] = None
+
             elif isinstance(entry_widget, tb.Text):
                 value = entry_widget.get("1.0", "end-1c")  # Special handling for Text widgets
                 self.value_list[field_label] = value
+
             elif hasattr(entry_widget, 'color'):  # Check if it's a color picker button
                 self.value_list[field_label] = entry_widget.color  # Get the color value directly from the button
+
             elif hasattr(entry_widget, 'unit_choices'):
                 selected_name = entry_widget.get()
                 # Find the corresponding unit_ID for the selected name
@@ -336,9 +350,30 @@ class BaseForm(tb.Frame):
                         break
                 self.value_list[field_label] = Objective.get_by_id(objective_id) if objective_id else None
 
+            elif hasattr(entry_widget, 'unit_choices'):
+                selected_name = entry_widget.get()
+                # Find the corresponding unit_ID for the selected name
+                unit_id = None
+                for id_str, name in entry_widget.unit_choices:
+                    if name == selected_name:
+                        unit_id = int(id_str)
+                        break
+                self.value_list[field_label] = Unit.get_by_id(unit_id) if unit_id else None
+
+            elif hasattr(entry_widget, 'project_category_choices'):
+                selected_name = entry_widget.get()
+                # Find the corresponding project_category_ID for the selected name
+                project_category_id = None
+                for id_str, name in entry_widget.project_category_choices:
+                    if name == selected_name:
+                        project_category_id = int(id_str)
+                        break
+                self.value_list[field_label] = ProjectCategory.get_by_id(project_category_id) if project_category_id else None
+
             elif isinstance(entry_widget, tb.Checkbutton):
                 value = bool(entry_widget.instate(['selected']))
                 self.value_list[field_label] = value
+
             else:
                 value = entry_widget.get()  # Regular Entry widgets
                 self.value_list[field_label] = value

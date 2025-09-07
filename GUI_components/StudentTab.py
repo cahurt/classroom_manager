@@ -4,7 +4,9 @@ import ttkbootstrap as tb
 from datetime import datetime
 
 import Persistance
-from Model import Student, Unit
+from Model import Hour
+from Model.Student import Student
+from Model.Unit import Unit
 from GUI_components.BaseTreeView import BaseTreeView
 from GUI_components.BaseForm import BaseForm
 from GUI_components.BaseTab import BaseTab
@@ -186,7 +188,12 @@ class StudentTab(BaseTab):
         hour_value = dictionary.get('hour', dictionary.get('hour_ID'))
 
         if not student:
-            # Creating a new student
+            # Creating a new student we have to deal with possible text entries if we are dealing with a CSV
+           #TODO: adapt this to deal with the hour name rather than ID
+            if isinstance(hour_value, str):
+                id_to_get = int(hour_value.strip())
+                hour_value =  Hour.get_by_id(id_to_get)
+
             student = Student(
                 studentID=sid,
                 glenpool_id=glenpool_id,
@@ -194,8 +201,9 @@ class StudentTab(BaseTab):
                 first_name=first_name,
                 last_name=last_name,
                 user_name=user_name,
-                hour = hour_value
+                hour=hour_value
             )
+                
         else:
             # Updating existing student
             if sid is not None:

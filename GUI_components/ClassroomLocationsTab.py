@@ -136,7 +136,7 @@ class ClassroomLocationsTab(BaseTab):
 
     def _reload_classroom_locations_tree(self):
         # this should be the only place where we have a query object for this tree or anything dealing with it
-        self.classroom_locations_tree.reload_tree(ClassroomLocation.ClassroomLocation.get_all_order_by_name(),
+        self.classroom_locations_tree.reload_tree(ClassroomLocation.get_all_order_by_name(),
                                                   self.TREE_COLUMNS)
 
     def _create_classroom_location_from_dictionary(self, dictionary) -> ClassroomLocation:
@@ -145,12 +145,12 @@ class ClassroomLocationsTab(BaseTab):
         # try to get an existing classroom_location
 
         if 'classroom_location_ID' in dictionary:
-            classroom_location = ClassroomLocation.ClassroomLocation.get_by_id(dictionary['classroom_location_ID'])
+            classroom_location = ClassroomLocation.get_by_id(dictionary['classroom_location_ID'])
 
         # if none exists: make a new one
         if not classroom_location:
             print("no classroom_location found in dict function, making a new one")
-            classroom_location = ClassroomLocation.ClassroomLocation(
+            classroom_location = ClassroomLocation(
                 name=dictionary['name'],
                 label=dictionary['label'],
                 label_size=int(dictionary['label_size']),

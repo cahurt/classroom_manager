@@ -1,11 +1,17 @@
-from typing import List, Optional
-from sqlalchemy import String, Integer, Text
-from sqlalchemy.orm import mapped_column, relationship
-from sqlalchemy.orm.attributes import Mapped
+# Model/Objective.py
+from __future__ import annotations
+from typing import TYPE_CHECKING, Optional, List
+
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text
+from sqlalchemy.orm import relationship, mapped_column, Mapped
+
 from Persistance import Base, session
-from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
+    from .Student import Student
     from .Project import Project
+    from .Unit import Unit
+
 
 
 
@@ -27,7 +33,7 @@ class Objective(Base):
     _hours_allocated: Mapped[int] = mapped_column('hours_allocated', Integer, default=0)
 
     #relationships
-    _projects: Mapped[List["Project"]] = relationship("Model.Project.Project", back_populates="_objective")
+    _projects: Mapped[List[Project]] = relationship(back_populates="objective")
 
     def __init__(self, name: str, description: str = "", hours_required: float = 0, hours_allocated: float = 0,
                  ignore_validation=False):

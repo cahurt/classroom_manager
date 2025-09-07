@@ -6,7 +6,7 @@ import os
 import tkinter as tk
 
 import Persistance
-from Model import Hour
+from Model.Hour import Hour
 from GUI_components.BaseTreeView import BaseTreeView
 from GUI_components.BaseForm import BaseForm
 from GUI_components.BaseTab import BaseTab

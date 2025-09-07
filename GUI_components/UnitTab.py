@@ -4,7 +4,8 @@ import ttkbootstrap as tb
 from datetime import datetime
 
 from Persistance import session
-from Model import Unit
+from Model.Unit import Unit
+
 from GUI_components.BaseTreeView import BaseTreeView
 from GUI_components.BaseForm import BaseForm
 from GUI_components.BaseTab import BaseTab

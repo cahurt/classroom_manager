@@ -9,6 +9,8 @@ from Model.AddDefaultObjects import AddDefaultObjects
 from GUI_components.ProjectTab import ProjectTab
 from GUI_components.StudentTab import StudentTab
 
+
+
 class ProjectManager:
     def __init__(self):
         Persistance.Base.metadata.create_all(Persistance.engine)

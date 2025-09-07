@@ -1,11 +1,19 @@
-from datetime import datetime, timedelta
-from typing import List, Optional
-from sqlalchemy import Integer, String, Text, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+# Model/Unit.py
+from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING, Optional, List
+
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy.sql.sqltypes import Text
+
 from Persistance import Base, session
-from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
+    from .Objective import Objective
     from .Project import Project
+
 
 
 
@@ -29,7 +37,7 @@ class Unit(Base):
     _closing_date: Mapped[datetime] = mapped_column('unit_closing_date', DateTime)
 
     # Relationships
-    _projects_in_unit: Mapped[List["Project"]] = relationship("Model.Project.Project", back_populates="_unit")
+    _projects_in_unit: Mapped[List["Project"]] = relationship("Model.Project.Project", back_populates="unit")
 
     def __init__(self, name: str, sequence: int,
                  opening_date: datetime, closing_date: datetime,

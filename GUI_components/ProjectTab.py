@@ -4,7 +4,9 @@ import ttkbootstrap as tb
 from datetime import datetime
 
 import Persistance
-from Model import Project, Unit
+from Model import Objective
+from Model.Project import Project
+from Model.Unit import Unit
 from GUI_components.BaseTreeView import BaseTreeView
 from GUI_components.BaseForm import BaseForm
 from GUI_components.BaseTab import BaseTab
@@ -23,27 +25,32 @@ class ProjectTab(BaseTab):
     # (display label, field label, display type)
     PROJECT_FIELDS = [
         ('Name', 'name', 'string(10,50)'),
+        ('Display', 'display_name', 'string(10,50)'),
         ('Description', 'description', 'text(15,5,1000)'),
         ('Opening Date', 'open_date', 'date'),
         ('Closing Date', 'close_date', 'date'),
+        ('Scheduled Date', 'close_date', 'date'),
         ('Days Allowed', 'days_allowed', 'int(10,0,20)'),
         ('Seats', 'seats', 'int(10,0,20)'),
         ('Min Group Size', 'minimum_group_size', 'int(10,0,20)'),
         ('Max Group Size', 'maximum_group_size', 'int(10,0,20)'),
         ('Sub Eligible', 'sub_eligible', 'bool'),
         ('Unit', 'unit', 'unit_dropdown'),
-        ('Objective', 'objective', 'objective_dropdown')
+        ('Objective', 'objective', 'objective_dropdown'),
+        ('Objective', 'objective', 'project_category_dropdown')
     ]
 
     TREE_COLUMNS = [('ID', 'project_ID', 0),
                     ('Name', 'name', 250),
                     ('Description', 'description', 100),
                     ('Opening Date', 'open_date', 50),
-                    ('Closing Date', 'close_date', 50)
+                    ('Closing Date', 'close_date', 50),
+                    ('Closing Date', 'scheduled_date', 50)
                     ]
 
-    CSV_HEADERS = ['name', 'description', 'open_date', 'close_date', 'days_allowed', 'seats',
-                   'minimum_group_size', 'maximum_group_size', 'sub_eligible']
+    CSV_HEADERS = ['name', 'display_name', 'description', 'open_date', 'close_date', 'days_allowed', 'seats',
+                   'minimum_group_size', 'maximum_group_size', 'sub_eligible', 'scheduled_date',
+                   'unit', 'objective', 'category']
 
 
     def __init__(self, notebook):
@@ -164,8 +171,27 @@ class ProjectTab(BaseTab):
         # if none exists: make a new one
         if not project:
             print("no project found in dict function, making a new one")
+            # we have to handle possible text entries
+            unit_value = dictionary['unit']
+            if isinstance(unit_value, str):
+                id_to_get = int(unit_value.strip())
+                print(f'unit value is string {id_to_get}... converting...')
+                unit_value = Unit.get_by_id(id_to_get)
+                #print(f"unit value is {unit_value} and id is {id_to_get} and hour value is {hour_value}")
+
+            obj_value = dictionary['objective']
+            if isinstance(obj_value, str):
+                id_to_get = int(obj_value.strip())
+                obj_value = Objective.get_by_id(id_to_get)
+
+            category_value = dictionary['category']
+            if isinstance(category_value, str):
+                id_to_get = int(category_value.strip())
+                category_value = Objective.get_by_id(id_to_get)
+
             project = Project(
                 name=dictionary['name'],
+                display_name=dictionary['display_name'],
                 description=dictionary['description'],
                 open_date=dictionary['open_date'],
                 close_date=dictionary['close_date'],
@@ -174,18 +200,20 @@ class ProjectTab(BaseTab):
                 minimum_group_size=int(dictionary['minimum_group_size']),
                 maximum_group_size=int(dictionary['maximum_group_size']),
                 sub_eligible=dictionary['sub_eligible'] == 'True',
-                unit=dictionary['unit'],
-                objective=dictionary['objective'],
+                unit=unit_value,
+                objective=obj_value,
+                category=category_value,
                 ignore_validation=True
             )
             if 'project_ID' in dictionary:
                 print(f"set project ID from dict function as {dictionary['project_ID']}")
-                project.project_ID = dictionary['project_ID']
+                project.projectID = dictionary['project_ID']
 
-        # if one does, we set values directly
+        # if one does, we set values directly, we should never get here from the CSV import so no need for sanity checking
         else:
 
             project.name = dictionary['name']
+            project.display_name = dictionary['display_name']
             project.description = dictionary['description']
             project.open_date = dictionary['open_date']
             project.close_date = dictionary['close_date']
@@ -195,6 +223,8 @@ class ProjectTab(BaseTab):
             project.maximum_group_size = int(dictionary['maximum_group_size'])
             project.sub_eligible = dictionary['sub_eligible'] == 'True'
             project.unit = dictionary['unit']
+            project.objective = dictionary['objective']
+            project.category = dictionary['category']
 
         return project
 
@@ -229,7 +259,7 @@ class ProjectTab(BaseTab):
         # try:
         form_values = self.edit_project_form.validate_and_collect_form_values()
         existing_project = self.get_selected_project()
-        form_values['project_ID'] = existing_project.project_ID
+        form_values['project_ID'] = existing_project.projectID
         edited_project = self._create_project_from_dictionary(form_values)
 
         if edited_project and existing_project:

@@ -1,8 +1,16 @@
-from typing import List, Optional
-from sqlalchemy import String, Integer, Text
-from sqlalchemy.orm import mapped_column, relationship
-from sqlalchemy.orm.attributes import Mapped
+# Model/ClassroomLocation.py
+from __future__ import annotations
+from typing import TYPE_CHECKING, List, Optional
+
+from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+
 from Persistance import Base, session
+
+if TYPE_CHECKING:
+    from .Checkin import Checkin
+    from .Student import Student
+
 
 
 class ClassroomLocation(Base):

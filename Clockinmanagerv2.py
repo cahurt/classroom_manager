@@ -2,6 +2,10 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 
+from click import wrap_text
+
+from Model import Project
+
 # Try to enable ttkbootstrap theming if available (optional)
 try:
     import ttkbootstrap as tb
@@ -19,6 +23,7 @@ from sqlalchemy import select
 try:
     # Project model import
     from Model.Hour import Hour as HourModel
+    from Model.Student import Student
 except Exception:
     HourModel = None  # type: ignore
 from Persistance import session
@@ -218,18 +223,102 @@ class CheckinApp:
         self.master.bind("<Return>", lambda _e: self._on_enter())
 
     def _build_student_clockin_form(self):
+        pass
 
-        student_id_value = self.entry_var.get()
-
-        id_lbl = ttk.Label(self.left_frame, text="ID:")
-        id_val = ttk.Label(self.left_frame)
-        id_val.configure(text=student_id_value)
-        id_lbl.grid(row=0, column=0, sticky="e", padx=(0, 8), pady=4)
-        id_val.grid(row=0, column=1, sticky="ew", pady=4)
 
     def _on_enter(self):
+
         # For demo: reflect the entry to hour_display
-        self._build_student_clockin_form()
+        student_id_value = self.entry_var.get()
+
+        id_val = ttk.Label(self.left_frame)
+        id_val.configure(text=student_id_value)
+        id_val.grid(row=0, column=1, sticky="ew", pady=4)
+
+        """
+            When Enter is pressed, try to identify a student using entry_var:
+              1) Match studentID (int)
+              2) Match glenpool_id (int)
+              3) Match rfid (string)
+            Update id_val accordingly.
+            """
+        text = ""
+        if hasattr(self, "entry_var"):
+            try:
+                text = self.entry_var.get().strip()
+                print(f'{text} was entered', file=sys.stdout)
+            except Exception:
+                text = ""
+
+        # Choose a SQLAlchemy session: prefer self.session if present, else shared Persistance session
+
+
+        student = None
+
+        # 1) Try studentID (int)
+        sid = None
+        try:
+            sid = int(text)
+        except (TypeError, ValueError):
+            sid = None
+
+        if sid is not None:
+            student = (
+                session.query(Student)
+                .filter(Student.studentID == sid)
+                .first()
+            )
+            print(f'{sid} was found as TT SID', file=sys.stdout)
+
+        # 2) Try glenpool_id (int) if still not found and input was numeric
+        if student is None and sid is not None:
+            student = (
+                session.query(Student)
+                .filter(Student._student_glenpool_ID == sid)
+                .first()
+            )
+            print(f'{sid} was found as Glenpool ID', file=sys.stdout)
+
+        # 3) Try rfid (string) if still not found
+        if student is None and text:
+            student = (
+                session.query(Student)
+                .filter(Student._studentRFID == text)
+                .first()
+            )
+            print(f'{text} was found as RFID', file=sys.stdout)
+
+        # Prepare display text
+        if student is not None:
+
+            display = f"{student.first_name} {student.last_name}".strip()
+            print(f'{display} was found', file=sys.stdout)
+            projects = Project.get_all_ordered_by_name()
+            current_row = 2
+            current_col = 1
+            for project in projects:
+                # Add newline every 80 chars for readability
+                wrap_length = 30
+                button_text = '\n'.join(project.name[i:i + wrap_length] for i in range(0, len(project.name), wrap_length))
+                print(f'{button_text} was added', file=sys.stdout)
+
+                btn = ttk.Button(self.left_frame, text=button_text)
+
+                btn.grid(row=current_row, column=current_col, sticky="ew", pady=10, padx=10)
+                current_col += 1
+                if current_col > 4:
+                    current_row += 1
+                    current_col = 1
+        else:
+            display = "No Student Found, please tryagain"
+            print(f'{display}', file=sys.stdout)
+
+        id_val.configure(text=display)
+
+
+        # Optionally clear the entry box for the next scan/entry
+        if hasattr(self, "entry_var") and hasattr(self.entry_var, "set"):
+            self.entry_var.set("")
 
     def _on_submit(self):
         print("Submit clicked", file=sys.stdout)
@@ -274,7 +363,7 @@ class CheckinApp:
         If multiple match, picks the most recently started hour relative to now.
         """
         if HourModel is None or session is None:
-            print(f"No HourModel {HourModel.hourID} or session {session} provided", file=sys.stderr)
+            #print(f"No HourModel {HourModel.hourID} or session {session} provided", file=sys.stderr)
             return None
 
 
@@ -290,7 +379,7 @@ class CheckinApp:
         else:
             now = datetime.now()
         now_s = _seconds_since_midnight(now.time())
-        print(f"Now: {now_s}", file=sys.stdout)
+
 
         # Fetch all hours; if you have many, consider filtering by active date range.
         rows = session.execute(select(HourModel)).scalars().all()
@@ -326,13 +415,11 @@ class CheckinApp:
 
 
         current = self._get_current_hour_record()
-        print(f"Current hour: {current}", file=sys.stdout)
 
         name = ""
         if current is not None:
             name = getattr(current, "name", getattr(current, "_name", "")) or ""
-            print(f"Current hour: {name}", file=sys.stdout)
-        self._set_hour_display_text(name)
+            self._set_hour_display_text(name)
 
     def start_hour_display_auto_update(self, interval_ms: int = 60_000) -> None:
         """

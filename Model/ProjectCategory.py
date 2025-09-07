@@ -1,8 +1,15 @@
-from typing import List, Optional
-from sqlalchemy import String, Integer, Text
-from sqlalchemy.orm import mapped_column, relationship
-from sqlalchemy.orm.attributes import Mapped
+# Model/ProjectCategory.py
+from __future__ import annotations
+from typing import TYPE_CHECKING, List, Optional
+
+from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy.orm import relationship, mapped_column, Mapped
+
 from Persistance import Base, session
+
+if TYPE_CHECKING:
+    from .Project import Project
+
 
 
 class ProjectCategory(Base):
@@ -14,9 +21,11 @@ class ProjectCategory(Base):
     MAX_STRING_LENGTH = 255
 
     # Database columns
-    objective_ID: Mapped[int] = mapped_column('objective_ID', primary_key=True)
+    project_category_ID: Mapped[int] = mapped_column('project_category_ID', primary_key=True)
     _name: Mapped[str] = mapped_column('project_category_name', String(MAX_STRING_LENGTH), nullable=False)
     _description: Mapped[str] = mapped_column('project_category_description', Text)
+
+    _projects_in_category: Mapped[List["Project"]] = relationship("Project", back_populates="checkin_project")
 
     def __init__(self, name: str, description: str = ""):
         """Initialize a new objective.

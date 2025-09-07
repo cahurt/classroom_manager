@@ -1,14 +1,17 @@
+# Model/Hour.py
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional, List
 from datetime import datetime, time
-from typing import List, Optional
-from sqlalchemy import String, Time, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, Float, String, Time
+from sqlalchemy.orm import relationship, mapped_column, Mapped
+
 from Persistance import Base, session
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .Student import Student
-
-
+    from .Project import Project
 
 
 class Hour(Base):

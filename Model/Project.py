@@ -1,9 +1,10 @@
 # Model/Project.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, List
-from datetime import datetime
+from datetime import datetime, date
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, select, func, cast, Date, and_
+
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from Persistance import Base, session
@@ -313,4 +314,70 @@ class Project(Base):
             The Project instance if found, None otherwise
         """
         return session.query(cls).filter_by(project_ID=project_ID).first()
+
+    @classmethod
+    def get_available_projects(
+            cls,
+            student: Student,
+            hour: Hour,
+            now: datetime | None = None,
+    ) -> List[Project]:
+        """
+        Return projects that are:
+          - Open (now between open and close dates, inclusive)
+          - Not over the student's allowed days for that project
+            (student's checkins for the project <= project._days_allowed)
+          - Not full for the given hour today
+            (today's checkins for that project+hour < project._seats)
+        """
+        if now is None:
+            now = datetime.now()
+        today: date = now.date()
+
+        # Defensive checks for required identifiers
+        student_id = getattr(student, "studentID", None)
+        hour_id = getattr(hour, "hourID", None)
+        if student_id is None:
+            raise ValueError("Student must have a valid primary key (studentID).")
+        if hour_id is None:
+            raise ValueError("Hour must have a valid primary key (hourID).")
+
+        # Correlated subquery: total checkins by this student for each project
+        student_checkins_for_project = (
+            select(func.count(Checkin.checkinID))
+            .where(
+                Checkin._checkin_projectID == Project.project_ID,
+                Checkin._checkin_studentID == student_id,
+            )
+            .correlate(Project)
+            .scalar_subquery()
+        )
+
+        # Correlated subquery: today's checkins for this project and hour
+        todays_hour_checkins_for_project = (
+            select(func.count(Checkin.checkinID))
+            .where(
+                Checkin._checkin_projectID == Project.project_ID,
+                Checkin._checkin_hourID == hour_id,
+                cast(Checkin._checkin_datetime, Date) == today,
+            )
+            .correlate(Project)
+            .scalar_subquery()
+        )
+
+        q = (
+            session.query(Project)
+            .filter(
+                and_(
+                    Project._open_date <= now,
+                    Project._close_date >= now,
+                    student_checkins_for_project <= Project._days_allowed,
+                    todays_hour_checkins_for_project < Project._seats,
+                )
+            )
+            .order_by(Project._display_name)
+        )
+
+        return q.all()
+
 

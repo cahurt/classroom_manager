@@ -151,6 +151,7 @@ class KeypadApp(tb.Window):
         # Ensure no default text remains
         self.info_text.delete("1.0", "end")
         self._set_info_display_text("boom")
+
     def refresh_current_hour(self):
         """
         Looks up the current Hour based on the system time and displays its name.
@@ -248,7 +249,6 @@ class KeypadApp(tb.Window):
         value = self.entry_var.get()
         # You can add any action here; we don't write to the left pane text as requested.
         self.handle_right_pane_enter()
-
 
     def handle_right_pane_enter(self) -> None:
         """
@@ -469,8 +469,8 @@ class KeypadApp(tb.Window):
                     except Exception:
                         try:
                             return int(float(parts[0]))
-                    except Exception:
-                        return 0
+                        except Exception:
+                            return 0
             vals = []
             for p in parts[:2]:
                 try:
@@ -501,6 +501,7 @@ class KeypadApp(tb.Window):
                 return False
             if s in ("1", "true", "yes", "on"):
                 return True
+
             return default
 
         if old is not None:
@@ -561,75 +562,74 @@ class KeypadApp(tb.Window):
                 except Exception:
                     pass
                 parent = getattr(self, "left_pane", None)
-    else:
-        # No previous info_text; default to left_pane
-        parent = getattr(self, "left_pane", None)
-
-    if parent is None:
-        # As a last resort, attach to the main app window/pane if available
-        parent = getattr(self, "left_pane", None) or getattr(self, "right_pane", None)
-
-    # Create the new flexible form container
-    container_parent = parent if parent is not None else self
-    try:
-        # Use the ttkbootstrap module directly
-        self.clock_in_form = tb.Frame(container_parent)
-    except Exception:
-        # Fallback to the tkinter module directly
-        self.clock_in_form = tk.Frame(container_parent)
-
-    # Place it where the old info_text was
-    if target_manager == "grid" and grid_opts:
-        self.clock_in_form.grid(**grid_opts)
-    elif target_manager == "pack" and pack_opts:
-        self.clock_in_form.pack(**pack_opts)
-    else:
-        # Default placement
-        try:
-            # Prefer grid if the parent already uses it
-            if hasattr(container_parent, "grid_slaves") and container_parent.grid_slaves():
-                self.clock_in_form.grid(row=0, column=0, sticky="nsew")
-                try:
-                    container_parent.grid_rowconfigure(0, weight=1)
-                    container_parent.grid_columnconfigure(0, weight=1)
-                except Exception:
-                    pass
-            else:
-                self.clock_in_form.pack(fill="both", expand=True)
-        except Exception:
-            self.clock_in_form.pack(fill="both", expand=True)
-
-    # Keep alias to avoid attribute errors in existing code paths
-    self.info_text = self.clock_in_form
-
-    # Start with an empty form
-    self._clear_info_display()
-
-
-def _set_info_display_text(self, text: str) -> None:
-    """
-    Render simple text into the clock_in_form as a Label.
-    This keeps existing callers working while the UI has moved to a form container.
-    """
-    self._ensure_clock_in_form()
-    self._clear_info_display()
-    try:
-        # Use ttkbootstrap module directly
-        label = tb.Label(self.clock_in_form, text=text, anchor="w", justify="left", wraplength=600)
-    except Exception:
-        # Fallback to tkinter module directly
-        label = tk.Label(self.clock_in_form, text=text, anchor="w", justify="left", wraplength=600)
-
-    # Use grid if the form is on a grid parent; otherwise pack
-    try:
-        if self.clock_in_form.winfo_manager() == "grid" or (
-            hasattr(self.clock_in_form.master, "grid_slaves") and self.clock_in_form.master.grid_slaves()
-        ):
-            label.grid(row=0, column=0, sticky="nw", padx=8, pady=8)
         else:
+            # No previous info_text; default to left_pane
+            parent = getattr(self, "left_pane", None)
+
+        if parent is None:
+            # As a last resort, attach to the main app window/pane if available
+            parent = getattr(self, "left_pane", None) or getattr(self, "right_pane", None)
+
+        # Create the new flexible form container
+        container_parent = parent if parent is not None else self
+        try:
+            # Use the ttkbootstrap module directly
+            self.clock_in_form = tb.Frame(container_parent)
+        except Exception:
+            # Fallback to the tkinter module directly
+            self.clock_in_form = tk.Frame(container_parent)
+
+        # Place it where the old info_text was
+        if target_manager == "grid" and grid_opts:
+            self.clock_in_form.grid(**grid_opts)
+        elif target_manager == "pack" and pack_opts:
+            self.clock_in_form.pack(**pack_opts)
+        else:
+            # Default placement
+            try:
+                # Prefer grid if the parent already uses it
+                if hasattr(container_parent, "grid_slaves") and container_parent.grid_slaves():
+                    self.clock_in_form.grid(row=0, column=0, sticky="nsew")
+                    try:
+                        container_parent.grid_rowconfigure(0, weight=1)
+                        container_parent.grid_columnconfigure(0, weight=1)
+                    except Exception:
+                        pass
+                else:
+                    self.clock_in_form.pack(fill="both", expand=True)
+            except Exception:
+                self.clock_in_form.pack(fill="both", expand=True)
+
+        # Keep alias to avoid attribute errors in existing code paths
+        self.info_text = self.clock_in_form
+
+        # Start with an empty form
+        self._clear_info_display()
+
+    def _set_info_display_text(self, text: str) -> None:
+        """
+        Render simple text into the clock_in_form as a Label.
+        This keeps existing callers working while the UI has moved to a form container.
+        """
+        self._ensure_clock_in_form()
+        self._clear_info_display()
+        try:
+            # Use ttkbootstrap module directly
+            label = tb.Label(self.clock_in_form, text=text, anchor="w", justify="left", wraplength=600)
+        except Exception:
+            # Fallback to tkinter module directly
+            label = tk.Label(self.clock_in_form, text=text, anchor="w", justify="left", wraplength=600)
+
+        # Use grid if the form is on a grid parent; otherwise pack
+        try:
+            if self.clock_in_form.winfo_manager() == "grid" or (
+                hasattr(self.clock_in_form.master, "grid_slaves") and self.clock_in_form.master.grid_slaves()
+            ):
+                label.grid(row=0, column=0, sticky="nw", padx=8, pady=8)
+            else:
+                label.pack(anchor="nw", padx=8, pady=8)
+        except Exception:
             label.pack(anchor="nw", padx=8, pady=8)
-    except Exception:
-        label.pack(anchor="nw", padx=8, pady=8)
 
     def _show_temporary_info_message(self, text: str, duration_ms: int) -> None:
         """

@@ -132,6 +132,16 @@ class Student(Base):
         """Set student's assigned hour."""
         self._student_hour = value
 
+    def save(self):
+        """Save this student instance to the database."""
+        session.add(self)
+        session.commit()
+
+    def update(self):
+        """Update this student's information in the database."""
+        session.merge(self)
+        session.commit()
+
 
     @classmethod
     def get_students_by_hour(cls, hour_id: int):
@@ -166,12 +176,26 @@ class Student(Base):
         """
         return session.query(cls).filter(cls.studentID == student_id).first()
 
-    def save(self):
-        """Save this student instance to the database."""
-        session.add(self)
-        session.commit()
+    @classmethod
+    def get_by_glenpool_id(cls, glenpool_id: int):
+        """Get a student by their Glenpool ID.
 
-    def update(self):
-        """Update this student's information in the database."""
-        session.merge(self)
-        session.commit()
+        Args:
+            glenpool_id (int): The Glenpool ID of the student to retrieve
+
+        Returns:
+            Student: The student with the specified Glenpool ID, or None if not found
+        """
+        return session.query(cls).filter(cls._student_glenpool_ID == glenpool_id).first()
+
+    @classmethod
+    def get_by_rfid(cls, rfid: str):
+        """Get a student by their RFID.
+
+        Args:
+            rfid (str): The RFID of the student to retrieve
+
+        Returns:
+            Student: The student with the specified RFID, or None if not found
+        """
+        return session.query(cls).filter(cls._studentRFID == rfid).first()

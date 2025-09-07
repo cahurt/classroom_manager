@@ -228,7 +228,7 @@ class CheckinApp:
 
     def _on_enter(self):
 
-        # For demo: reflect the entry to hour_display
+
         student_id_value = self.entry_var.get()
 
         id_val = ttk.Label(self.left_frame)
@@ -293,20 +293,21 @@ class CheckinApp:
 
             display = f"{student.first_name} {student.last_name}".strip()
             print(f'{display} was found', file=sys.stdout)
+            # projects = Project.get_available_projects(student,self._get_current_hour_record(), datetime.now())
             projects = Project.get_all_ordered_by_name()
             current_row = 2
             current_col = 1
             for project in projects:
                 # Add newline every 80 chars for readability
                 wrap_length = 30
-                button_text = '\n'.join(project.name[i:i + wrap_length] for i in range(0, len(project.name), wrap_length))
+                button_text = '\n'.join(project.display_name[i:i + wrap_length] for i in range(0, len(project.display_name), wrap_length))
                 print(f'{button_text} was added', file=sys.stdout)
 
-                btn = ttk.Button(self.left_frame, text=button_text)
+                project_btn = ttk.Button(self.left_frame, text=button_text)
 
-                btn.grid(row=current_row, column=current_col, sticky="ew", pady=10, padx=10)
+                project_btn.grid(row=current_row, column=current_col, sticky="ew", pady=10, padx=10)
                 current_col += 1
-                if current_col > 4:
+                if current_col > 2:
                     current_row += 1
                     current_col = 1
         else:
@@ -455,7 +456,7 @@ class CheckinApp:
 
 def main():
     # Set up test time to Sep 6 12pm
-    test_datetime = datetime(2025, 9, 6, 12, 0, 0)
+    test_datetime = datetime(2025, 9, 7, 12, 0, 0)
     set_advancing_test_time(test_datetime)
 
     if HAS_TTKBOOTSTRAP:

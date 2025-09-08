@@ -34,7 +34,7 @@ class Hour(Base):
     _end_date: Mapped[datetime] = mapped_column(DateTime)
 
     # Relationships
-    students_in_hour: Mapped[List["Student"]] = relationship(back_populates="_student_hour")
+    _students_in_hour: Mapped[List["Student"]] = relationship(back_populates="_student_hour")
 
     #students: Mapped[List["Student"]] = relationship(back_populates="student_hour")
     #teams: Mapped[List["Team"]] = relationship(back_populates="team_hour")
@@ -146,6 +146,16 @@ class Hour(Base):
         if value and self._assembly_start_time and value <= self._assembly_start_time:
             raise ValueError("Assembly end time must be after assembly start time")
         self._assembly_end_time = value
+
+    @property
+    def students_in_hour(self) -> List["Student"]:
+        """Get the list of students in this hour."""
+        return self._students_in_hour
+
+    @students_in_hour.setter
+    def students_in_hour(self, value: List["Student"]) -> None:
+        """Set the list of students in this hour."""
+        self._students_in_hour = value
 
     def save(self):
         """Add or update the hour in the database."""

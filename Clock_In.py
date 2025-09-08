@@ -485,6 +485,47 @@ class CheckinKioskApp:
         # Put a placeholder label and keep a spot where the student name can appear
         self.student_name_label = tb.Label(self.project_information, text="Enter a student ID to see projects.", bootstyle="secondary")
         self.student_name_label.grid(row=0, column=0, sticky="w")
+        self._update_current_checkins()
+
+# python
+    def _update_current_checkins(self):
+        self._refresh_hour()
+        checkins = Checkin.get_checkins_by_hour_today(self.current_hour_obj)
+
+        # Normalize to a list so we can iterate safely
+        if checkins is None:
+            checkins = []
+        elif isinstance(checkins, Checkin):
+            checkins = [checkins]
+        else:
+            # Convert generic iterables (e.g., SQLAlchemy results) to a concrete list
+            try:
+                checkins = list(checkins)
+            except TypeError:
+                checkins = [checkins]
+
+        current_row = 2
+        current_col = 0
+        for checkin in checkins:
+            display_text = f'{checkin.checkin_student.first_name} {checkin.checkin_student.last_name} - {checkin.checkin_project.display_name}'
+            self.student_with_checkin_label = tb.Label(self.project_information, text=display_text, font=("Segoe UI", 8))
+            self.student_with_checkin_label.grid(row=current_row, column=current_col, sticky="w", pady=(0, 8))
+            current_col += 1
+            if current_col >= 1:
+                current_row += 1
+                current_col = 0
+
+        current_row +=2
+        current_col = 0
+        students_without_checkins = Student.get_students_without_checkin_today(self.current_hour_obj)
+        for student in students_without_checkins:
+            display_text = f'{student.first_name} {student.last_name}'
+            self.student_without_checkin_label = tb.Label(self.project_information, text=display_text, font=("Segoe UI", 8, "bold"), style="danger")
+            self.student_without_checkin_label.grid(row=current_row, column=current_col, sticky="w", pady=(0, 8))
+            current_col += 1
+            if current_col >= 1:
+                current_row += 1
+                current_col = 0
 
     def _populate_projects_for_student(self, student):
         # Clear existing
@@ -522,7 +563,7 @@ class CheckinKioskApp:
         if not self.current_student:
             Messagebox.show_warning("Please enter a valid student ID first.", "No Student", parent=self.root)
             return
-        existing_checkin = Checkin.get_checkins_by_hour_student_today(self.current_hour_obj, self.current_student)
+        existing_checkin = Checkin.get_checkins_by_hour_and_student_today(self.current_hour_obj, self.current_student)
         has_existing_checkin = False
         if existing_checkin is not None:
             has_existing_checkin = True
@@ -533,15 +574,15 @@ class CheckinKioskApp:
                 chk = Checkin(self.now(), self.current_hour_obj, self.current_student, project)
             else:
                 chk = existing_checkin
-                chk.checkin_datetime = self.now()
-                chk.last_edited = self.now()
+                chk.datetime = self.now()
+                #chk.last_edited = self.now()
                 chk.checkin_hour = self.current_hour_obj
                 chk.checkin_project = project
                 chk.checkin_student = self.current_student
 
                 #Messagebox.show_info("Check-in updated.", "Success", parent=self.root)
             chk.save()
-            return
+
 
         except Exception as e:
             self.session.rollback()
@@ -552,7 +593,7 @@ class CheckinKioskApp:
         self._clear_project_info()
         self.current_student = None
         self.student_var.set("")
-        Messagebox.show_info("Check-in recorded.", "Success", parent=self.root)
+        #Messagebox.show_info("Check-in recorded.", "Success", parent=self.root)
 
     @staticmethod
     def _safe_set(obj, attr_name, value):
@@ -590,7 +631,8 @@ def _verify_main_thread_and_root(app):
         raise RuntimeError("Application has no 'root' attribute.")
 
     if not isinstance(root, (tk.Tk, tk.Toplevel)):
-        print(f"[Verify] Unexpected root type: {type(root)!r}")
+        pass
+       # print(f"[Verify] Unexpected root type: {type(root)!r}")
 
     try:
         root.update_idletasks()
@@ -598,16 +640,18 @@ def _verify_main_thread_and_root(app):
         print(f"[Verify] winfo_exists={root.winfo_exists()} viewable={root.winfo_viewable()} state={state}")
         print(f"[Verify] geometry={root.winfo_geometry()} title={root.title()!r}")
     except Exception as ex:
-        print(f"[Verify] Root inspection failed: {ex}")
+        pass
+        #print(f"[Verify] Root inspection failed: {ex}")
 
     def _report_after():
         t = threading.current_thread()
-        print(f"[Verify] Tk after() running on thread={t.name} ident={t.ident}")
+       # print(f"[Verify] Tk after() running on thread={t.name} ident={t.ident}")
 
     try:
         root.after(10, _report_after)
     except Exception as ex:
-        print(f"[Verify] Scheduling after() failed: {ex}")
+        pass
+       # print(f"[Verify] Scheduling after() failed: {ex}")
 
     return root
 
@@ -632,7 +676,8 @@ def run_app(app):
         try:
             app.setup_window()
         except Exception as ex:
-            print(f"[Run] setup_window() raised: {ex}")
+            pass
+           # print(f"[Run] setup_window() raised: {ex}")
 
     try:
         root.lift()
@@ -645,7 +690,7 @@ def run_app(app):
     # Help surface exceptions from Tk callbacks
     def _tk_error_handler(exc, val, tb):
         import traceback, sys
-        print("Tk callback exception:", file=sys.stderr)
+        #print("Tk callback exception:", file=sys.stderr)
         traceback.print_exception(exc, val, tb)
 
     try:
@@ -660,11 +705,11 @@ def run_app(app):
 
 def _dump_threads(reason):
     import sys, traceback
-    print(f"[Watchdog] {reason}")
+    #print(f"[Watchdog] {reason}")
     for tid, frame in sys._current_frames().items():
         thr = next((t for t in threading.enumerate() if t.ident == tid), None)
-        print(f"\n[Watchdog] Thread {thr.name if thr else '?'} ({tid}):")
-        traceback.print_stack(frame)
+        #print(f"\n[Watchdog] Thread {thr.name if thr else '?'} ({tid}):")
+        #traceback.print_stack(frame)
 
 
 if __name__ == "__main__":
@@ -680,11 +725,11 @@ if __name__ == "__main__":
     create_timer.start()
 
     try:
-        print("[Entry] Creating app...")
+        #print("[Entry] Creating app...")
         app = CheckinKioskApp()
-        print("[Entry] App created.")
+        #print("[Entry] App created.")
     except Exception:
-        print("[Entry] App creation failed:")
+        #print("[Entry] App creation failed:")
         traceback.print_exc()
         sys.exit(1)
     finally:
@@ -696,12 +741,12 @@ if __name__ == "__main__":
     run_timer.start()
 
     try:
-        print("[Entry] Calling run_app(app)...")
+        #print("[Entry] Calling run_app(app)...")
         run_app(app)
-        print("[Entry] run_app() returned (window closed).")
+        #print("[Entry] run_app() returned (window closed).")
     except Exception:
-        print("[Entry] run_app() raised:")
-        traceback.print_exc()
+        #print("[Entry] run_app() raised:")
+        #traceback.print_exc()
         sys.exit(1)
     finally:
         run_timer.cancel()

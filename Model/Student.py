@@ -1,7 +1,7 @@
 # Model/Student.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, List
-from datetime import datetime
+from datetime import datetime, date, time, timedelta
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
@@ -31,9 +31,9 @@ class Student(Base):
     
     #one-to-one relationships 
     _student_hourID: Mapped[int] = mapped_column(ForeignKey("hours.hourID"),nullable=False)
-    _student_hour: Mapped[Hour] = relationship(back_populates="students_in_hour")
+    _student_hour: Mapped[Hour] = relationship(back_populates="_students_in_hour")
 
-    #student_checkins: Mapped[list[Checkin]] = relationship(back_populates="checkin_student", cascade="all, delete-orphan")
+    _student_checkins: Mapped[list[Checkin]] = relationship(back_populates="_checkin_student", cascade="all, delete-orphan")
 
     # @studentTeamID: Mapped[int] = mapped_column(ForeignKey("teams.teamID"))
     # studentTeam: Mapped["Team"] = relationship(back_populates="studentsInTeam")
@@ -123,6 +123,16 @@ class Student(Base):
         self._student_hourID = value
 
     @property
+    def id(self) -> int:
+        """Get student's ID."""
+        return self.studentID
+
+    @id.setter
+    def id(self, value: int) -> None:
+        """Set student's ID."""
+        self.studentID = value
+
+    @property
     def hour(self) -> Hour:
         """Get student's assigned hour."""
         return self._student_hour
@@ -131,6 +141,16 @@ class Student(Base):
     def hour(self, value: Hour) -> None:
         """Set student's assigned hour."""
         self._student_hour = value
+
+    @property
+    def checkins(self) -> List[Checkin]:
+        """Get student's checkins."""
+        return self._student_checkins
+
+    @checkins.setter
+    def checkins(self, value: List[Checkin]) -> None:
+        """Set student's checkins."""
+        self._student_checkins = value
 
     def save(self):
         """Save this student instance to the database."""
@@ -199,3 +219,42 @@ class Student(Base):
             Student: The student with the specified RFID, or None if not found
         """
         return session.query(cls).filter(cls._studentRFID == rfid).first()
+
+    @classmethod
+    def get_students_without_checkin_today(cls, hour: "Hour") -> List["Student"]:
+        """Get all students in a specific hour who don't have a checkin for today.
+
+        Args:
+            hour (Hour): The hour to check students from
+
+        Returns:
+            List[Student]: List of students without a checkin today
+        """
+
+        # Ensure Checkin is defined in this scope (avoids NameError and circular imports)
+        from .Checkin import Checkin
+
+        today = date.today()
+        start_of_day = datetime.combine(today, time.min)
+        end_of_day = datetime.combine(today, time.max)
+
+        students_with_checkins = (
+            session.query(cls)
+            .join(cls._student_checkins)
+            .filter(
+                cls._student_hourID == hour.hourID,
+                Checkin._checkin_datetime >= start_of_day,
+                Checkin._checkin_datetime <= end_of_day
+            )
+        )
+
+        students_without_checkins = (
+            session.query(cls)
+            .filter(
+                cls._student_hourID == hour.hourID,
+                ~cls.studentID.in_(students_with_checkins.with_entities(cls.studentID))
+            )
+            .all()
+        )
+
+        return students_without_checkins

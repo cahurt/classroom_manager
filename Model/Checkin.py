@@ -1,9 +1,7 @@
 # Model/Checkin.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, List
-from datetime import datetime, timedelta
-
-
+from datetime import datetime, timedelta, time
 
 from sqlalchemy import Column, Integer, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship, Mapped, mapped_column
@@ -32,7 +30,7 @@ class Checkin(Base):
     checkin_hour: Mapped[Hour] = relationship(back_populates="checkins_in_hour")
 
     _checkin_studentID: Mapped[int] = mapped_column(ForeignKey("students.studentID"), nullable=False)
-    #checkin_student: Mapped[Student] = relationship(back_populates="student_checkins")
+    _checkin_student: Mapped[Student] = relationship(back_populates="_student_checkins")
 
     _checkin_projectID: Mapped[int] = mapped_column(ForeignKey("projects.project_ID"), nullable=False)
     _checkin_project: Mapped[Project] = relationship(back_populates="_project_checkins")
@@ -44,16 +42,16 @@ class Checkin(Base):
         self._checkin_hour = checkin_hour
         #shouldn't need to do this, but can't think of another way to get it out the door #TODO: track down why the hourID is not setting automatically
         self._checkin_hourID = checkin_hour.hourID
-        self._checkin_Student = checkin_student
+        self._checkin_student = checkin_student
         #shouldn't need to do this, but can't think of another way to get it out the door #TODO: track down why the StudentID is not setting automatically
         self._checkin_studentID = checkin_student.studentID
         self._checkin_project = checkin_project
 
     @property
-    def checkin_datetime(self) -> datetime:
+    def datetime(self) -> datetime:
         return self._checkin_datetime
 
-    @checkin_datetime.setter
+    @datetime.setter
     def datetime(self, value: datetime) -> None:
         self._checkin_datetime = value
         self._checkin_last_edited = datetime.now()
@@ -66,9 +64,33 @@ class Checkin(Base):
     def last_edited(self, value: datetime) -> None:
         self._checkin_last_edited = value
 
+
     @property
-    def last_edited(self) -> datetime:
-        return self._checkin_last_edited
+    def hourID(self) -> int:
+        return self._checkin_hourID
+
+    @hourID.setter
+    def hourID(self, value: int) -> None:
+        self._checkin_hourID = value
+        self._checkin_last_edited = datetime.now()
+
+    @property
+    def studentID(self) -> int:
+        return self._checkin_studentID
+
+    @studentID.setter
+    def studentID(self, value: int) -> None:
+        self._checkin_studentID = value
+        self._checkin_last_edited = datetime.now()
+
+    @property
+    def projectID(self) -> int:
+        return self._checkin_projectID
+
+    @projectID.setter
+    def projectID(self, value: int) -> None:
+        self._checkin_projectID = value
+        self._checkin_last_edited = datetime.now()
 
     @property
     def checkin_hour(self) -> "Hour":
@@ -81,19 +103,19 @@ class Checkin(Base):
 
     @property
     def checkin_student(self) -> "Student":
-        return self._checkin_Student
+        return self._checkin_student
 
     @checkin_student.setter
     def checkin_student(self, value: "Student") -> None:
-        self._checkin_Student = value
+        self._checkin_student = value
         self._checkin_last_edited = datetime.now()
 
     @property
-    def checkin_project(self) -> "Student":
+    def checkin_project(self) -> "Project":
         return self._checkin_project
 
     @checkin_project.setter
-    def checkin_project(self, value: "Student") -> None:
+    def checkin_project(self, value: "Project") -> None:
         self._checkin_project = value
         self._checkin_last_edited = datetime.now()
 
@@ -139,20 +161,50 @@ class Checkin(Base):
         return session.query(cls).all()
 
     @classmethod
-    def get_checkins_by_hour_student_today(cls, hour: 'Hour', student: 'Student') -> List['Checkin']:
-        """Retrieve all checkins for today for a specific hour and student.
-
-        Args:
-            hour (Hour): The hour to filter checkins by
-            student (Student): The student to filter checkins by
-
-        Returns:
-            List[Checkin]: List of checkins for the specified hour and student today
+    def get_checkins_by_hour_and_student_today(cls, hour: "Hour", student: "Student") -> Optional['Checkin']:
         """
+        Retrieve the most recent checkin for today for a specific hour and student.
+        Returns None if none exists.
+        """
+        # Build start-of-day and next-day bounds as datetimes to compare with a DateTime column
         today = datetime.now().date()
-        return session.query(cls).filter(
-            cls._checkin_hourID == hour.hourID,
-            cls._checkin_studentID == student.studentID,
-            cls._checkin_datetime >= today,
-            cls._checkin_datetime < today + datetime.timedelta(days=1)
-        ).all()
+        start_of_day = datetime.combine(today, time.min)
+        next_day = start_of_day + timedelta(days=1)
+
+        return (
+            session.query(cls)
+            .filter(
+                cls._checkin_hourID == hour.hourID,
+                cls._checkin_studentID == student.studentID,
+                cls._checkin_datetime >= start_of_day,
+                cls._checkin_datetime < next_day,
+            )
+            .order_by(cls._checkin_datetime.desc())
+            .first()
+        )
+
+    @classmethod
+    def get_checkins_by_hour_today(cls, hour: "Hour") -> Optional['Checkin']:
+        """
+        Retrieve the most recent checkin for today for a specific hour and student.
+        Returns None if none exists.
+        """
+        # Build start-of-day and next-day bounds as datetimes to compare with a DateTime column
+        today = datetime.now().date()
+        start_of_day = datetime.combine(today, time.min)
+        next_day = start_of_day + timedelta(days=1)
+
+        return (
+            session.query(cls)
+            .filter(
+                cls._checkin_hourID == hour.hourID,
+                cls._checkin_datetime >= start_of_day,
+                cls._checkin_datetime < next_day,
+            )
+            .order_by(cls._checkin_datetime.desc())
+            .first()
+        )
+
+    @property
+    def checkin_datetime(self):
+        return self._checkin_datetime

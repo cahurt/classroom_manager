@@ -89,7 +89,7 @@ class CheckinKioskApp:
 
         # Time control
         self._use_test_time = True
-        self._test_now = datetime(2025,9,8,11,22)  # set via self.set_test_time
+        self._test_now = datetime(2025,9,9,12,38)  # set via self.set_test_time
 
         # State from startup dialog
         self.is_sub_day = False
@@ -270,6 +270,7 @@ class CheckinKioskApp:
             self.student_var.set(s[:-1])
 
     def _on_student_entered(self):
+        #TODO: build this logic to actually fit the Student class and allow for rfid entry
         code = self.student_var.get().strip()
         if not code.isdigit():
             Messagebox.show_warning("Please enter digits only.", "Invalid Entry", parent=self.root)
@@ -307,6 +308,7 @@ class CheckinKioskApp:
         Prefer using Project.get_all_ordered_by_name if available, otherwise fallback to a simple query.
         Filters to 'open' projects if open/close dates exist.
         """
+        #TODO: rebuild this to actually fit the Project class and not guess at attributes
         projects = []
         # Try provided method first
         try:
@@ -354,6 +356,7 @@ class CheckinKioskApp:
 
     # -------- Hour / countdown --------
     def _refresh_hour(self):
+        #TODO: rebuild this to match the actual hour class
         self.current_hour_obj = self._find_current_hour()
         if self.current_hour_obj:
             hname = (getattr(self.current_hour_obj, "display_name", None)
@@ -367,6 +370,7 @@ class CheckinKioskApp:
             self._clear_project_info()
 
     def _find_current_hour(self):
+
         """
         Determine the current Hour object based on now() and selected schedule.
         Tries to use start/end fields; also checks for assembly-specific fields.
@@ -386,6 +390,7 @@ class CheckinKioskApp:
         return hour
 
     def _update_countdown(self):
+        #TODO: set this up so that we get a countdown exactly like the hour manager class
         """
         Update the countdown display using HourManager's formatting logic if available.
         """
@@ -453,7 +458,7 @@ class CheckinKioskApp:
         self.student_name_label.grid(row=0, column=0, sticky="w")
         self._update_current_checkins()
 
-# python
+
     def _update_current_checkins(self):
         self._refresh_hour()
         if self.current_hour_obj:
@@ -495,6 +500,7 @@ class CheckinKioskApp:
                     current_col = 0
 
     def _populate_projects_for_student(self, student):
+       #TODO: build this for the real Student object and project object
         # Clear existing
         for w in self.project_information.winfo_children():
             w.destroy()
@@ -563,6 +569,7 @@ class CheckinKioskApp:
         #Messagebox.show_info("Check-in recorded.", "Success", parent=self.root)
 
     @staticmethod
+    #TODO: depricate this method... was created as a generic AI slop patch
     def _safe_set(obj, attr_name, value):
         """
         Try property first (setter), otherwise set attribute if present.
@@ -585,6 +592,7 @@ import threading
 import faulthandler
 import tkinter as tk
 
+#TODO: depricate this method, some funk was happening at initial build... need to sort out threading
 def _verify_main_thread_and_root(app):
     cur = threading.current_thread()
     main = threading.main_thread()
@@ -622,7 +630,7 @@ def _verify_main_thread_and_root(app):
 
     return root
 
-
+#TODO: simplyfy this stripping the debugging tools
 def run_app(app):
     root = _verify_main_thread_and_root(app)
 
@@ -669,7 +677,7 @@ def run_app(app):
     root.mainloop()
     print("[Run] mainloop() returned")
 
-
+#TODO: depricate this method, some funk was happening at initial build... need to sort out threading
 def _dump_threads(reason):
     import sys, traceback
     #print(f"[Watchdog] {reason}")
@@ -679,6 +687,7 @@ def _dump_threads(reason):
         #traceback.print_stack(frame)
 
 
+#TODO: simplyfy this stripping the debugging tools
 if __name__ == "__main__":
     import sys
     import traceback

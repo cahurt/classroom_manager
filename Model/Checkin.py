@@ -194,14 +194,12 @@ class Checkin(Base):
         start_of_day = datetime.combine(today, time.min)
         next_day = start_of_day + timedelta(days=1)
 
-        return (
-            session.query(cls)
-            .filter(
+
+        checkins = session.query(cls).filter(
                 cls._checkin_hourID == hour.hourID,
                 cls._checkin_datetime >= start_of_day,
                 cls._checkin_datetime < next_day,
-            )
-            .order_by(cls._checkin_datetime.desc())
-            .first()
-        )
+                ).order_by(cls._checkin_datetime.desc())
+
+        return checkins
 

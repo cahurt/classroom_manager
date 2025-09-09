@@ -205,6 +205,3 @@ class Checkin(Base):
             .first()
         )
 
-    @property
-    def checkin_datetime(self):
-        return self._checkin_datetime

@@ -89,7 +89,7 @@ class CheckinKioskApp:
 
         # Time control
         self._use_test_time = True
-        self._test_now = datetime(2025,9,7,12,0)  # set via self.set_test_time
+        self._test_now = datetime(2025,9,8,11,22)  # set via self.set_test_time
 
         # State from startup dialog
         self.is_sub_day = False
@@ -364,59 +364,26 @@ class CheckinKioskApp:
             self.hour_name_label.configure(text=str(hname))
         else:
             self.hour_name_label.configure(text="No Active Hour")
+            self._clear_project_info()
 
     def _find_current_hour(self):
         """
         Determine the current Hour object based on now() and selected schedule.
         Tries to use start/end fields; also checks for assembly-specific fields.
         """
-        try:
-            hours = self.session.query(Hour).all()
-        except Exception:
-            return None
-
         now_dt = self.now()
         today = now_dt.date()
 
-        def resolve_time(h, start_names, end_names):
-            st = et = None
-            for n in start_names:
-                if hasattr(h, n):
-                    st = getattr(h, n)
-                    break
-            for n in end_names:
-                if hasattr(h, n):
-                    et = getattr(h, n)
-                    break
-            # Convert to datetimes for today if they are times
-            if isinstance(st, time):
-                st = datetime.combine(today, st)
-            if isinstance(et, time):
-                et = datetime.combine(today, et)
-            return st, et
+        try:
+            hour = Hour.get_by_time(now_dt.time())
+        except Exception:
+            return None
 
-        # Choose which fields to check based on "Assembly Schedule"
-        if self.is_assembly:
-            start_candidates = ("assembly_start_time", "assembly_start", "_assembly_start_time")
-            end_candidates = ("assembly_end_time", "assembly_end", "_assembly_end_time")
-        else:
-            start_candidates = ("start_time", "_start_time", "normal_start_time")
-            end_candidates = ("end_time", "_end_time", "normal_end_time")
+        if hour is None:
+            hour = Hour.get_next_by_time(now_dt.time())
 
-        # Fallback if above missing and sub-day selected (try sub-day fields if they exist)
-        sub_start_candidates = ("sub_start_time", "_sub_start_time")
-        sub_end_candidates = ("sub_end_time", "_sub_end_time")
 
-        # Scan all hours and return the one containing now
-        selected = None
-        for h in hours:
-            st, et = resolve_time(h, start_candidates, end_candidates)
-            if (st is None or et is None) and self.is_sub_day:
-                st, et = resolve_time(h, sub_start_candidates, sub_end_candidates)
-            if st and et and st <= now_dt <= et:
-                selected = h
-                break
-        return selected
+        return hour
 
     def _update_countdown(self):
         """
@@ -428,12 +395,8 @@ class CheckinKioskApp:
             # Pick proper end
             if self.is_assembly and hasattr(self.current_hour_obj, "assembly_end_time"):
                 end_val = getattr(self.current_hour_obj, "assembly_end_time")
-            elif self.is_sub_day and hasattr(self.current_hour_obj, "sub_end_time"):
-                end_val = getattr(self.current_hour_obj, "sub_end_time")
             else:
-                end_val = (getattr(self.current_hour_obj, "end_time", None)
-                           or getattr(self.current_hour_obj, "_end_time", None)
-                           or getattr(self.current_hour_obj, "normal_end_time", None))
+                end_val = (getattr(self.current_hour_obj, "end_time", None))
         else:
             end_val = None
 
@@ -456,6 +419,8 @@ class CheckinKioskApp:
             disp = "--:--"
 
         self.countdown_label.configure(text=disp)
+        if self.current_student is None:
+            self._update_current_checkins()
 
     def _tick(self):
         """
@@ -468,6 +433,7 @@ class CheckinKioskApp:
 
         # If using test time, you may want to auto-advance during testing (disabled by default).
         # Example: self.advance_test_time(timedelta(seconds=1))
+        self.advance_test_time(timedelta(seconds=1))
         self.root.after(1000, self._tick)
 
     def _bump_time_for_test(self, minutes=1):
@@ -490,42 +456,43 @@ class CheckinKioskApp:
 # python
     def _update_current_checkins(self):
         self._refresh_hour()
-        checkins = Checkin.get_checkins_by_hour_today(self.current_hour_obj)
+        if self.current_hour_obj:
+            checkins = Checkin.get_checkins_by_hour_today(self.current_hour_obj)
 
-        # Normalize to a list so we can iterate safely
-        if checkins is None:
-            checkins = []
-        elif isinstance(checkins, Checkin):
-            checkins = [checkins]
-        else:
-            # Convert generic iterables (e.g., SQLAlchemy results) to a concrete list
-            try:
-                checkins = list(checkins)
-            except TypeError:
+            # Normalize to a list so we can iterate safely
+            if checkins is None:
+                checkins = []
+            elif isinstance(checkins, Checkin):
                 checkins = [checkins]
+            else:
+                # Convert generic iterables (e.g., SQLAlchemy results) to a concrete list
+                try:
+                    checkins = list(checkins)
+                except TypeError:
+                    checkins = [checkins]
 
-        current_row = 2
-        current_col = 0
-        for checkin in checkins:
-            display_text = f'{checkin.checkin_student.first_name} {checkin.checkin_student.last_name} - {checkin.checkin_project.display_name}'
-            self.student_with_checkin_label = tb.Label(self.project_information, text=display_text, font=("Segoe UI", 8))
-            self.student_with_checkin_label.grid(row=current_row, column=current_col, sticky="w", pady=(0, 8))
-            current_col += 1
-            if current_col >= 1:
-                current_row += 1
-                current_col = 0
+            current_row = 2
+            current_col = 0
+            for checkin in checkins:
+                display_text = f'{checkin.checkin_student.first_name} {checkin.checkin_student.last_name} - {checkin.checkin_project.display_name}'
+                self.student_with_checkin_label = tb.Label(self.project_information, text=display_text, font=("Segoe UI", 10, "bold"), style="success")
+                self.student_with_checkin_label.grid(row=current_row, column=current_col, sticky="w", pady=(0, 8))
+                current_col += 1
+                if current_col >= 1:
+                    current_row += 1
+                    current_col = 0
 
-        current_row +=2
-        current_col = 0
-        students_without_checkins = Student.get_students_without_checkin_today(self.current_hour_obj)
-        for student in students_without_checkins:
-            display_text = f'{student.first_name} {student.last_name}'
-            self.student_without_checkin_label = tb.Label(self.project_information, text=display_text, font=("Segoe UI", 8, "bold"), style="danger")
-            self.student_without_checkin_label.grid(row=current_row, column=current_col, sticky="w", pady=(0, 8))
-            current_col += 1
-            if current_col >= 1:
-                current_row += 1
-                current_col = 0
+            current_row +=2
+            current_col = 0
+            students_without_checkins = Student.get_students_without_checkin_today(self.current_hour_obj)
+            for student in students_without_checkins:
+                display_text = f'{student.first_name} {student.last_name}'
+                self.student_without_checkin_label = tb.Label(self.project_information, text=display_text, font=("Segoe UI", 8, "bold"), style="danger")
+                self.student_without_checkin_label.grid(row=current_row, column=current_col, sticky="w", pady=(0, 8))
+                current_col += 1
+                if current_col >= 1:
+                    current_row += 1
+                    current_col = 0
 
     def _populate_projects_for_student(self, student):
         # Clear existing
